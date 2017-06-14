@@ -9,6 +9,10 @@
 #include "mavlink_core.h"
 #include "cgi.h"
 
+#ifdef _POSIX_VERSION
+#include "posix/functions.h"
+#endif
+
 #ifdef SYSTEM_FREERTOS
 /*
   get uptime in seconds
@@ -980,6 +984,9 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "nvram_pack_values", "", nvram_pack_values);
     tmpl->put(tmpl, "nvram_set_value", "", nvram_set_value);
 #endif // SYSTEM_FREERTOS
+#ifdef _POSIX_VERSION
+    posix_functions_init(tmpl);
+#endif
     tmpl->put(tmpl, "format_storage", "", format_storage);
     tmpl->put(tmpl, "factory_reset", "", factory_reset);
     tmpl->put(tmpl, "reboot_companion", "", reboot_companion);

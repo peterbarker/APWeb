@@ -149,6 +149,25 @@ static void nmcli_property_integer_get(struct template_state *tmpl, const char *
     *ret = atoi(text);
 }
 
+
+static void nmcli_property_string_set(struct template_state *tmpl, const char *ifname, const char *setting_property, const char *value)
+{
+    char cmd[300];
+    /* TODO: do we REALLY want to link with the dbus libraries?! */
+    snprintf(cmd, sizeof(cmd), "nmcli c m %s %s %s", ifname, setting_property, value);
+    if (system(cmd) == -1) {
+        sock_printf(tmpl->sock, "system failed");
+        return;
+    }
+}
+
+static void nmcli_property_integer_set(struct template_state *tmpl, const char *ifname, const char *setting_property, int value)
+{
+    char text[300];
+    snprintf(text, sizeof(text), "%d", value);
+    nmcli_property_string_set(tmpl, ifname, setting_property, text);
+}
+
 void sock_send_ssid(struct sock_buf *sock, const char *ssid, const char *pass, const unsigned channel, const unsigned mode)
 {
     sock_printf(sock, "{ "
@@ -163,29 +182,74 @@ void sock_send_ssid(struct sock_buf *sock, const char *ssid, const char *pass, c
 #include "../functions.h" // for apweb_enc_auth_t
 
 #define streq(a,b) (strcmp(a,b) == 0)
+
+static const char *ifname = "wlan0";
+
 /*
   get ssid and password
  */
+static const char *prop_ssid = "802-11-wireless.ssid";
+static const char *prop_sectype = "802-11-wireless-security.key-mgmt";
+static const char *prop_channel = "802-11-wireless.channel";
+static const char *prop_key = "802-11-wireless-security.psk";
 static void get_ssid(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     char ssid[50]="", pass[50], security_type[50]="";
     int mode=0, channel=0;
 
-    const char *ifname = "wlan0";
-    nmcli_propery_string_get(tmpl, ifname, "802-11-wireless.ssid", ssid, sizeof(ssid));
-    nmcli_propery_string_get(tmpl, ifname, "802-11-wireless-security.key-mgmt", security_type, sizeof(security_type));
-    nmcli_propery_integer_get(tmpl, ifname, "802-11-wireless.channel", &channel);
+    nmcli_property_string_get(tmpl, ifname, prop_ssid, ssid, sizeof(ssid));
+    nmcli_property_string_get(tmpl, ifname, prop_sectype, security_type, sizeof(security_type));
+    nmcli_property_integer_get(tmpl, ifname, prop_channel, &channel);
 
     if (streq(security_type, "wpa-psk")) {
-        nmcli_propery_string_get(tmpl, ifname, "802-11-wireless-security.psk", pass, sizeof(pass));
+        nmcli_property_string_get(tmpl, ifname, prop_key, pass, sizeof(pass));
         mode = AUTH_WPA2;
     } else {
         mode = -1;
     }
 
-
     sock_send_ssid(tmpl->sock, ssid, pass, channel, mode);
 }
+
+
+/*
+  set ssid and password
+ */
+static void set_ssid(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    if (argc < 4) {
+        sock_printf(tmpl->sock, "invalid call\n");
+        return;
+    }
+    const char *ssid = argv[0];
+    const char *password = argv[1];
+    const char *authtype = argv[2];
+    const char *channel = argv[3];
+    if (!ssid || !password || !authtype || !channel) {
+        sock_printf(tmpl->sock, "invalid SSID or password\n");
+    }
+
+    int auth_mode = atoi(authtype);
+    int ap_channel = atoi(channel);
+
+    const char *ret = validate_ssid_password(ssid, password, auth_mode, ap_channel);
+    if (ret) {
+        // invalid input
+        sock_printf(tmpl->sock, "%s", ret);
+        return;
+    }
+
+    console_printf("Setting SSID='%s' password='%s' authtype=%s channel=%u\n", ssid, password, authtype, ap_channel);
+
+    nmcli_property_integer_set(tmpl, ifname, prop_sectype, auth_mode);
+    nmcli_property_integer_set(tmpl, ifname, prop_channel, ap_channel);
+    nmcli_property_string_set(tmpl, ifname, prop_ssid, ssid);
+    nmcli_property_string_set(tmpl, ifname, prop_key, password);
+
+    sock_printf(tmpl->sock, "Set SSID and password");
+}
+
+
 
 
 void posix_functions_init(struct template_state *tmpl)
@@ -193,4 +257,5 @@ void posix_functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "file_listdir", "", file_listdir);
     tmpl->put(tmpl, "disk_info", "", disk_info);
     tmpl->put(tmpl, "get_ssid", "", get_ssid);
+    tmpl->put(tmpl, "set_ssid", "", set_ssid);
 }

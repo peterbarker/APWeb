@@ -183,7 +183,7 @@ void sock_send_ssid(struct sock_buf *sock, const char *ssid, const char *pass, c
 
 #define streq(a,b) (strcmp(a,b) == 0)
 
-static const char *ifname = "wlan0";
+static const char *ifname = "WiFiAP";
 
 /*
   get ssid and password

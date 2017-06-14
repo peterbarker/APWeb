@@ -1,6 +1,7 @@
 #include "../includes.h"
 #include "../template.h"
 #include "functions.h"
+#include "../functions.h"
 
 #include <sys/statvfs.h>
 
@@ -119,9 +120,77 @@ static void file_listdir(struct template_state *tmpl, const char *name, const ch
     closedir(dh);
 }
 
+static void nmcli_property_string_get(struct template_state *tmpl, const char *ifname, const char *setting_property, char *ret, unsigned retlen)
+{
+    char cmd[300];
+    char tmpfile[] = "/tmp/nmcli.XXXXXX";
+    int content_fd = mkstemp(tmpfile);
+    if (content_fd == -1) {
+        sock_printf(tmpl->sock, "mkstemp failed");
+        return;
+    }
+    /* TODO: do we REALLY want to link with the dbus libraries?! */
+    /* note that the -s argument to nmcli is not present on Raspbian/Jessie */
+    snprintf(cmd, sizeof(cmd), "nmcli c s %s | grep \"%s:\" |  perl -pe 's/^[^ ]*[ ]*(.*)\n/$1/' >%s", ifname, setting_property, tmpfile);
+    if (system(cmd) == -1) {
+        sock_printf(tmpl->sock, "system failed");
+        return;
+    }
+    if (read(content_fd, ret, retlen) == -1) {
+        sock_printf(tmpl->sock, "read failed");
+        return;
+    }
+}
+
+static void nmcli_property_integer_get(struct template_state *tmpl, const char *ifname, const char *setting_property, int *ret)
+{
+    char text[300];
+    nmcli_property_string_get(tmpl, ifname, setting_property, text, sizeof(text));
+    *ret = atoi(text);
+}
+
+void sock_send_ssid(struct sock_buf *sock, const char *ssid, const char *pass, const unsigned channel, const unsigned mode)
+{
+    sock_printf(sock, "{ "
+                "\"ssid\": \"%s\", "
+                "\"password\" : \"%s\", "
+                "\"channel\" : %d, "
+                "\"authmode\" : %d "
+                "}",
+                ssid, pass, channel, mode);
+}
+
+#include "../functions.h" // for apweb_enc_auth_t
+
+#define streq(a,b) (strcmp(a,b) == 0)
+/*
+  get ssid and password
+ */
+static void get_ssid(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    char ssid[50]="", pass[50], security_type[50]="";
+    int mode=0, channel=0;
+
+    const char *ifname = "wlan0";
+    nmcli_propery_string_get(tmpl, ifname, "802-11-wireless.ssid", ssid, sizeof(ssid));
+    nmcli_propery_string_get(tmpl, ifname, "802-11-wireless-security.key-mgmt", security_type, sizeof(security_type));
+    nmcli_propery_integer_get(tmpl, ifname, "802-11-wireless.channel", &channel);
+
+    if (streq(security_type, "wpa-psk")) {
+        nmcli_propery_string_get(tmpl, ifname, "802-11-wireless-security.psk", pass, sizeof(pass));
+        mode = AUTH_WPA2;
+    } else {
+        mode = -1;
+    }
+
+
+    sock_send_ssid(tmpl->sock, ssid, pass, channel, mode);
+}
+
 
 void posix_functions_init(struct template_state *tmpl)
 {
     tmpl->put(tmpl, "file_listdir", "", file_listdir);
     tmpl->put(tmpl, "disk_info", "", disk_info);
+    tmpl->put(tmpl, "get_ssid", "", get_ssid);
 }

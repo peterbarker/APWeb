@@ -358,15 +358,13 @@ static void format_storage(struct template_state *tmpl, const char *name, const 
 #endif
 }
 
-
-#ifdef SYSTEM_FREERTOS
 /*
   validate auth settings for wifi
   return error-string on error. Return NULL if OK
  */
-static const char *validate_ssid_password(const char *ssid,
+const char *validate_ssid_password(const char *ssid,
                                           const char *password,
-                                          enc_auth_t auth_mode,
+                                          apweb_enc_auth_t auth_mode,
                                           int channel)
 {
     if (channel < 1 || channel > 14) {
@@ -394,6 +392,8 @@ static const char *validate_ssid_password(const char *ssid,
     }
     return "Invalid auth mode";
 }
+
+#ifdef SYSTEM_FREERTOS
 
 /*
   set ssid and password

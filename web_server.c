@@ -8,6 +8,7 @@
 #include "web_server.h"
 #include "includes.h"
 #include "web_files.h"
+#include <arpa/inet.h>
 
 #include <termios.h>
 
@@ -16,9 +17,13 @@ static int num_sockets_open;
 static int debug_level;
 static int serial_port_fd = -1;
 static int fc_udp_in_fd = -1;
+static int udp_out_fd = -1;
 
 struct sockaddr_in fc_addr;
 socklen_t fc_addrlen;
+
+struct sockaddr_in udp_out_addr;
+socklen_t udp_out_addrlen;
 
 #ifndef bool
 #define bool int
@@ -197,6 +202,21 @@ static void mavlink_broadcast(int fd, mavlink_message_t *msg)
 }
 
 /*
+  send a mavlink msg over WiFi to a single target
+ */
+static void mavlink_send_udp_out(mavlink_message_t *msg)
+{
+    if (udp_out_fd == -1) {
+        return;
+    }
+    uint8_t buf[300];
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msg);
+    if (len > 0) {
+        sendto(udp_out_fd, buf, len, 0, (struct sockaddr*)&udp_out_addr, sizeof(udp_out_addr));
+    }
+}
+
+/*
   process input on a connection
 */
 static void connection_process(struct connection_state *c)
@@ -280,6 +300,13 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
             }
         }
 
+        if (udp_out_fd != -1) {
+            FD_SET(udp_out_fd, &fds);
+            if (udp_out_fd >= numfd) {
+                numfd = udp_out_fd+1;
+            }
+        }
+
         tv.tv_sec = 1;
         tv.tv_usec = 0;
 
@@ -315,6 +342,20 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
             }
         }
 
+        // check for incoming UDP packet from udp-out connection:
+        if (FD_ISSET(udp_out_fd, &fds)) {
+            // we have data pending
+            uint8_t buf[1024];
+            fc_addrlen = sizeof(fc_addr);
+            ssize_t nread = recvfrom(udp_out_fd, buf, sizeof(buf), MSG_DONTWAIT, (struct sockaddr*)&udp_out_addr, &udp_out_addrlen);
+            if (nread <= 0) {
+                /* printf("Read error from udp out connection\n"); */
+            } else {
+                // send to flight controller
+                mavlink_fc_write(buf, nread);
+            }
+        }
+
         if (FD_ISSET(fc_udp_in_fd, &fds) || true) {
             // we have data pending
             uint8_t buf[3000];
@@ -332,6 +373,8 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
                             if (udp_socket_fd != -1) {
                                 mavlink_broadcast(udp_socket_fd, &msg);
                             }
+                            // send to udp-out connection
+                            mavlink_send_udp_out(&msg);
                         }
                     }
                 }
@@ -357,6 +400,8 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
                         if (udp_socket_fd != -1) {
                             mavlink_broadcast(udp_socket_fd, &msg);
                         }
+                        // send to udp-out connection
+                        mavlink_send_udp_out(&msg);
                     }
                 }
             }
@@ -484,6 +529,43 @@ static int udp_in_open(int port)
     return res;
 }
 
+static int udp_out_open(const char *ip, const int port)
+{
+    int one=1;
+
+    // prepare sending socket
+    struct sockaddr_in send_addr;
+
+    memset(&send_addr,0,sizeof(send_addr));
+
+    send_addr.sin_port = 0;
+    send_addr.sin_family = AF_INET;
+
+    int res = socket(AF_INET, SOCK_DGRAM, 0);
+    if (res == -1) {
+        return -1;
+    }
+
+    setsockopt(res,SOL_SOCKET,SO_REUSEADDR,(char *)&one,sizeof(one));
+
+    if (bind(res, (struct sockaddr *)&send_addr, sizeof(send_addr)) < 0) {
+        return(-1);
+    }
+
+    // prepare destination address
+    memset(&udp_out_addr,0x0,sizeof(udp_out_addr));
+    udp_out_addr.sin_family = AF_INET;
+    if (inet_pton(AF_INET, ip, &udp_out_addr.sin_addr.s_addr) != 1) {
+        printf("Failed to convert IP address\n");
+        exit(1);
+    }
+    udp_out_addr.sin_family = AF_INET;
+    udp_out_addr.sin_port = htons(port);
+
+    return res;
+}
+
+
 /* main program, start listening and answering queries */
 int main(int argc, char *argv[])
 {
@@ -492,11 +574,12 @@ int main(int argc, char *argv[])
     int opt;
     const char *serial_port = NULL;
     unsigned baudrate = 57600;
-    const char *usage = "Usage: web_server -p http_port -b baudrate -s serial_port -d debug_level -u -f fc_udp_in";
+    const char *usage = "Usage: web_server -p http_port -b baudrate -s serial_port -d debug_level -u -f fc_udp_in -O udp-out-address:port";
     bool do_udp_broadcast = 0;
     int fc_udp_in_port = -1;
+    const char *udp_out_arg = NULL; // e.g. 1.2.3.4:6543
 
-    while ((opt=getopt(argc, argv, "p:s:b:hd:uf:")) != -1) {
+    while ((opt=getopt(argc, argv, "p:s:b:hd:uf:O:")) != -1) {
         switch (opt) {
         case 'p':
             http_port = atoi(optarg);
@@ -515,6 +598,9 @@ int main(int argc, char *argv[])
             break;
         case 'f':
             fc_udp_in_port = atoi(optarg);
+            break;
+        case 'O':
+            udp_out_arg = optarg;
             break;
         case 'h':
         default:
@@ -562,6 +648,20 @@ int main(int argc, char *argv[])
         fc_udp_in_fd = udp_in_open(fc_udp_in_port);
         if (fc_udp_in_fd == -1) {
             printf("Failed to open UDP-in socket\n");
+            exit(1);
+        }
+    }
+
+    if (udp_out_arg != NULL) {
+        char *colon = strchr(udp_out_arg, ':');
+        if (colon == NULL) {
+            printf("udp-out address should be e.g. 1.2.3.4:6543\n");
+            exit(1);
+        }
+        *colon = '\0';
+        udp_out_fd = udp_out_open(udp_out_arg, atoi(colon+1));
+        if (udp_out_fd == -1) {
+            printf("Failed to open UDP-out (%s:%u)\n", udp_out_arg, atoi(colon+1));
             exit(1);
         }
     }

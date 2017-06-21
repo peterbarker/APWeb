@@ -382,8 +382,7 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
         }
 
         // check for incoming bytes from flight controller
-        if (serial_port_fd != -1 ||
-            FD_ISSET(serial_port_fd, &fds)) {
+        if (FD_ISSET(serial_port_fd, &fds)) {
             uint8_t buf[200];
             ssize_t nread = read(serial_port_fd, buf, sizeof(buf));
             if (nread <= 0) {

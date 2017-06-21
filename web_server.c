@@ -356,7 +356,7 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
             }
         }
 
-        if (FD_ISSET(fc_udp_in_fd, &fds) || true) {
+        if (FD_ISSET(fc_udp_in_fd, &fds)) {
             // we have data pending
             uint8_t buf[3000];
             fc_addrlen = sizeof(fc_addr);

@@ -8,12 +8,16 @@
 #include "mavlink_json.h"
 #include "mavlink_core.h"
 #include "cgi.h"
+#include "upgrade_px4.h"
 
 #ifdef _POSIX_VERSION
 #include "posix/functions.h"
 #endif
 
-#ifdef SYSTEM_FREERTOS
+#ifndef __DECONST
+#define __DECONST(type, var) ((type)(uintptr_t)(const void *)(var))
+#endif
+
 /*
   get uptime in seconds
  */
@@ -49,7 +53,6 @@ static void mem_free(struct template_state *tmpl, const char *name, const char *
     int mem_type = argc>0?atoi(argv[0]):1;
     sock_printf(tmpl->sock, "%u", xPortGetFreeHeapSize(mem_type));
 }
-#endif
 
 /*
   get upload progress
@@ -470,12 +473,19 @@ static void handle_sonix_upgrade(struct template_state *tmpl, const char *filena
     }
 }
 
+#endif
+
 /*
   handle ardupilot fw update
  */
 static void handle_ardupilot_upgrade(struct template_state *tmpl, const char *filename, const char *filedata, uint32_t size)
 {
     console_printf("ardupilot_upgrade: size=%u\n", size);
+    if (filedata[0] == '{') {
+        // I'm thoroughly convinced this is a JSON file upload...
+        return handle_ardupilot_upgrade_px4(tmpl, filename, filedata, size);
+    }
+#ifdef SYSTEM_FREERTOS
     set_upload_message("checking firmware MD5");
     set_upload_progress(1);
     uint32_t fw_offset;
@@ -485,7 +495,12 @@ static void handle_ardupilot_upgrade(struct template_state *tmpl, const char *fi
     } else {
         set_upload_message("Bad MD5 on image");
     }
+#else
+    console_printf("Not a px4 file");
+#endif
 }
+
+#ifdef SYSTEM_FREERTOS
 
 /*
   handle TX fw update
@@ -521,7 +536,7 @@ static void handle_file_upload(struct template_state *tmpl, const char *filename
     }
 }
 
-
+#endif
 /*
   file upload and firmware upgrade
  */
@@ -540,22 +555,26 @@ static void file_upload(struct template_state *tmpl, const char *name, const cha
     const char *filename = cgi->get(cgi, "file");
     uint32_t size = 0;
     const char *filedata = cgi->get_content(cgi, "file", &size);
-    const char *fs_filename = cgi->get(cgi, "FILENAME");
+    /* const char *fs_filename = cgi->get(cgi, "FILENAME"); */
 
     console_printf("file_upload: uploadtype=%s filename=%s size=%u\n", uploadtype, filename, size);
     
     if (strcmp(uploadtype, "ArduPilot") == 0) {
         handle_ardupilot_upgrade(tmpl, filename, filedata, size);
+#ifdef SYSTEM_FREERTOS
     } else if (strcmp(uploadtype, "TX") == 0) {
         handle_tx_upgrade(tmpl, filename, filedata, size);
     } else if (strcmp(uploadtype, "sonix") == 0) {
         handle_sonix_upgrade(tmpl, filename, filedata, size);
     } else if (strcmp(uploadtype, "fs") == 0) {
         handle_file_upload(tmpl, fs_filename, filedata, size);
+#endif
     } else {
         console_printf("Invalid file upload\n");
     }
 }
+
+#ifdef SYSTEM_FREERTOS
 
 /*
   return sonix version
@@ -970,7 +989,6 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "get_ssid", "", get_ssid);
     tmpl->put(tmpl, "set_ssid", "", set_ssid);
     tmpl->put(tmpl, "sonix_version", "", sonix_version);
-    tmpl->put(tmpl, "file_upload", "", file_upload);
     tmpl->put(tmpl, "file_unlink", "", file_unlink);
     tmpl->put(tmpl, "file_mkdir", "", file_mkdir);
     tmpl->put(tmpl, "file_rename", "", file_rename);
@@ -986,6 +1004,7 @@ void functions_init(struct template_state *tmpl)
 #ifdef _POSIX_VERSION
     posix_functions_init(tmpl);
 #endif
+    tmpl->put(tmpl, "file_upload", "", file_upload);
     tmpl->put(tmpl, "uptime", "", uptime);
     tmpl->put(tmpl, "mem_free", "", mem_free);
     tmpl->put(tmpl, "fc_mavlink_count", "", fc_mavlink_count);

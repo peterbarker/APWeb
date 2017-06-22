@@ -8,8 +8,11 @@
 #include <stdbool.h>
 
 // get upload progress as a percentage
+void set_upload_message(const char msg[120]);
 uint8_t get_upload_progress(void);
 const char *get_upload_message(void);
+
+void set_upload_progress(int percent);
 
 // get number of seconds since boot
 long long get_sys_seconds_boot();

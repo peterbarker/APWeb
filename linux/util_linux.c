@@ -7,6 +7,12 @@
 /*
  get upload progress as a percentage
 */
+int upload_progress;
+void set_upload_progress(const int percent)
+{
+    upload_progress = percent;
+}
+
 uint8_t get_upload_progress(void)
 {
     return 0;
@@ -15,9 +21,15 @@ uint8_t get_upload_progress(void)
 /*
  get upload progress message
 */
+char upload_message[120];
+void set_upload_message(const char msg[120])
+{
+    strncpy(upload_message, msg, sizeof(upload_message));
+    upload_message[sizeof(upload_message)-1] = '\0';
+}
 const char *get_upload_message(void)
 {
-    return "";
+    return upload_message;
 }
 
 static struct {

@@ -3,7 +3,7 @@ CFLAGS=-Wall -g -Werror -std=gnu99
 
 SRC = $(wildcard *.c) $(wildcard lib/*.c) $(wildcard linux/*.c) $(wildcard posix/*.c)
 OBJ = $(SRC:%.c=%.o)
-LIBS = -ltalloc -lpthread
+LIBS = -ltalloc -lpthread -lz
 
 all: files/embedded.c mavlink web_server
 

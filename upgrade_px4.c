@@ -5,6 +5,7 @@
 #include "posix/helper_functions.h"
 #endif
 
+#include "base64.h"
 
 static char *json_tag_content_start(const char *json, const char *tag)
 {
@@ -34,17 +35,52 @@ static char *json_tag_content_start(const char *json, const char *tag)
 struct readstate {
     const char *base64_src;
     unsigned offset;
+    char base64_decoded_bytes[3];
+    unsigned base64_decoded_bytecount;
 };
+
+static void my_read_decode_more_base64(struct readstate *my_state)
+{
+    char quartet[4];
+    unsigned qi = 0;
+    while (qi<4 && my_state->base64_src[my_state->offset] != '"') {
+        quartet[qi] = my_state->base64_src[my_state->offset];
+        my_state->offset++;
+        if (quartet[qi] == '=') {
+            break;
+        }
+        qi++;
+    }
+    int decoded_bytes;
+    if (qi != 4) {
+        decoded_bytes = base64_decode_tail(my_state->base64_decoded_bytes, quartet, qi);
+    } else {
+        decoded_bytes = base64_decode_quartet(my_state->base64_decoded_bytes, quartet);
+        if (decoded_bytes == 0) {
+            decoded_bytes = 3;
+        }
+    }
+    if (decoded_bytes == -1) {
+        return;
+    }
+    my_state->base64_decoded_bytecount = (unsigned)decoded_bytes;
+}
 
 static int my_read(void *_my_state, char *ret, const int len)
 {
     fprintf(stderr, "my_read called for (%u) bytes\n", len);
     struct readstate *my_state = (struct readstate*)_my_state;
     int bytes_read = 0;
-    while (bytes_read < len &&
-           my_state->base64_src[my_state->offset] != '"') {
-        ret[bytes_read] = my_state->base64_src[my_state->offset];
-        my_state->offset++;
+    while (bytes_read < len) {
+        if (my_state->base64_decoded_bytecount == 0) {
+            my_read_decode_more_base64(my_state);
+            if (my_state->base64_decoded_bytecount == 0) {
+                break;
+            }
+        }
+        ret[bytes_read] = my_state->base64_decoded_bytes[0];
+        my_state->base64_decoded_bytecount--;
+        memcpy(my_state->base64_decoded_bytes, &my_state->base64_decoded_bytes[1], my_state->base64_decoded_bytecount);
         bytes_read++;
     }
     return bytes_read;

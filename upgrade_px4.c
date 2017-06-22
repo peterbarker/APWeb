@@ -82,7 +82,7 @@ static void my_read_decode_more_base64(struct readstate *my_state)
 
 static void my_read_inflate_base64(struct readstate *my_state)
 {
-    while (my_state->strm.avail_out == ZLIB_CHUNKSIZE) {
+    while (ZLIB_CHUNKSIZE-my_state->strm.avail_out == my_state->strm_next_out_nextbyte) {
         fprintf(stderr, "iz zero\n");
         if (my_state->base64_decoded_bytecount == my_state->base64_decoded_nextbyte) {
             my_read_decode_more_base64(my_state);
@@ -139,7 +139,7 @@ static int my_read(void *_my_state, char *ret, const int len)
             my_state->strm_next_out_nextbyte = 0;
         }
         ret[bytes_read] = my_state->zlib_out[my_state->strm_next_out_nextbyte];
-        fprintf(stderr, "Got byte 0x%02x\n", ret[bytes_read]);
+        fprintf(stderr, "Got byte 0x%02x\n", (uint8_t)ret[bytes_read]);
         my_state->strm_next_out_nextbyte++;
 
         bytes_read++;

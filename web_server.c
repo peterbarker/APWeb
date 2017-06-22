@@ -25,6 +25,12 @@ socklen_t fc_addrlen;
 struct sockaddr_in udp_out_addr;
 socklen_t udp_out_addrlen;
 
+unsigned baudrate = 57600;
+
+struct {
+    uint64_t packet_count_from_fc;
+} stats;
+
 #ifndef bool
 #define bool int
 #endif
@@ -300,6 +306,17 @@ BAD_PTHREAD_INIT:
 BAD_ACCEPT:
     return;
 }
+
+int uart2_get_baudrate()
+{
+    return baudrate;
+}
+
+unsigned mavlink_fc_pkt_count()
+{
+    return stats.packet_count_from_fc;
+}
+
 /*
   main select loop
  */
@@ -394,6 +411,7 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
                 mavlink_status_t status;
                 for (uint16_t i=0; i<nread; i++) {
                     if (mavlink_parse_char(MAVLINK_COMM_FC, buf[i], &msg, &status)) {
+                        stats.packet_count_from_fc++;
                         if (!mavlink_handle_msg(&msg)) {
                             // forward to network connection as a udp broadcast packet
                             if (udp_socket_fd != -1) {
@@ -420,6 +438,7 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
                 mavlink_status_t status;
                 for (uint16_t i=0; i<nread; i++) {
                     if (mavlink_parse_char(MAVLINK_COMM_FC, buf[i], &msg, &status)) {
+                        stats.packet_count_from_fc++;
                         if (!mavlink_handle_msg(&msg)) {
                             // forward to network connection as a udp broadcast packet
                             if (udp_socket_fd != -1) {
@@ -604,7 +623,6 @@ int main(int argc, char *argv[])
     extern char *optarg;
     int opt;
     const char *serial_port = NULL;
-    unsigned baudrate = 57600;
     const char *usage = "Usage: web_server -p http_port -b baudrate -s serial_port -d debug_level -u -f fc_udp_in -O udp-out-address:port";
     bool do_udp_broadcast = 0;
     int fc_udp_in_port = -1;

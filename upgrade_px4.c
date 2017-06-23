@@ -7,6 +7,7 @@
 
 #include "base64.h"
 #include "zlib.h"
+#include "md5.h"
 
 #define CHUNK 16384
 
@@ -56,7 +57,7 @@ static void my_read_decode_more_base64(struct readstate *my_state)
 {
     char quartet[4];
     unsigned qi = 0;
-    fprintf(stderr, "offset=%u\n", my_state->offset);
+    /* fprintf(stderr, "offset=%u\n", my_state->offset); */
     while (qi<4 && my_state->base64_src[my_state->offset] != '"') {
         quartet[qi] = my_state->base64_src[my_state->offset];
         my_state->offset++;
@@ -82,8 +83,9 @@ static void my_read_decode_more_base64(struct readstate *my_state)
 
 static void my_read_inflate_base64(struct readstate *my_state)
 {
+    /* fprintf(stderr, "my_read_inflate_base64 called\n"); */
     while (ZLIB_CHUNKSIZE-my_state->strm.avail_out == my_state->strm_next_out_nextbyte) {
-        fprintf(stderr, "iz zero\n");
+        /* fprintf(stderr, "iz zero\n"); */
         if (my_state->base64_decoded_bytecount == my_state->base64_decoded_nextbyte) {
             my_read_decode_more_base64(my_state);
             if (my_state->base64_decoded_bytecount == 0) {
@@ -97,17 +99,19 @@ static void my_read_inflate_base64(struct readstate *my_state)
 
         my_state->strm.avail_in = 1;
         my_state->strm.next_in = &my_state->base64_decoded_bytes[my_state->base64_decoded_nextbyte];
-        fprintf(stderr, "feeding 0x%02x\n", my_state->strm.next_in[0]);
+        /* fprintf(stderr, "feeding 0x%02x\n", my_state->strm.next_in[0]); */
         my_state->base64_decoded_nextbyte++;
 
         int ret = inflate(&my_state->strm, Z_NO_FLUSH);
-        fprintf(stderr, "after inflate: %u (%u)\n", my_state->strm.avail_in, ZLIB_CHUNKSIZE-my_state->strm.avail_out);
+        /* fprintf(stderr, "after inflate: %u (%u)\n", my_state->strm.avail_in, ZLIB_CHUNKSIZE-my_state->strm.avail_out); */
         if (ret == Z_STREAM_ERROR) {
             abort();
         }
         switch (ret) {
         case Z_STREAM_END:
             fprintf(stderr, "end\n");
+            (void)inflateEnd(&my_state->strm);
+            return;
         case Z_NEED_DICT:
             fprintf(stderr, "dict\n");
         case Z_DATA_ERROR:
@@ -118,33 +122,104 @@ static void my_read_inflate_base64(struct readstate *my_state)
             return;
         }
     }
-    fprintf(stderr, "have data\n");
+    /* fprintf(stderr, "have data\n"); */
 }
 
 
 
 static int my_read(void *_my_state, char *ret, const int len)
 {
-    fprintf(stderr, "my_read called for (%u) bytes\n", len);
+    /* fprintf(stderr, "my_read called for (%u) bytes\n", len); */
     struct readstate *my_state = (struct readstate*)_my_state;
     int bytes_read = 0;
     while (bytes_read < len) {
         if (ZLIB_CHUNKSIZE-my_state->strm.avail_out == my_state->strm_next_out_nextbyte) {
             // no bytes currently available
+            my_state->strm.avail_out = ZLIB_CHUNKSIZE;
+            my_state->strm.next_out = my_state->zlib_out;
+            my_state->strm_next_out_nextbyte = 0;
             my_read_inflate_base64(my_state);
-            if (ZLIB_CHUNKSIZE-my_state->strm.avail_out == my_state->strm_next_out_nextbyte) {
+            if (ZLIB_CHUNKSIZE-my_state->strm.avail_out == 0) {
                 fprintf(stderr, "Break\n");
                 break;
             }
-            my_state->strm_next_out_nextbyte = 0;
+            /* fprintf(stderr, "Deflated %u bytes\n", ZLIB_CHUNKSIZE-my_state->strm.avail_out); */
         }
         ret[bytes_read] = my_state->zlib_out[my_state->strm_next_out_nextbyte];
-        fprintf(stderr, "Got byte 0x%02x\n", (uint8_t)ret[bytes_read]);
+        /* fprintf(stderr, "Got byte 0x%02x\n", (uint8_t)ret[bytes_read]); */
         my_state->strm_next_out_nextbyte++;
 
         bytes_read++;
     }
     return bytes_read;
+}
+
+void init_mystate(struct readstate *my_state)
+{
+    memset(my_state, '\0', sizeof(*my_state));
+    my_state->offset = 0;
+
+    /* allocate inflate state */
+    my_state->strm.zalloc = Z_NULL;
+    my_state->strm.zfree = Z_NULL;
+    my_state->strm.opaque = Z_NULL;
+    my_state->strm.avail_in = 0;
+    /* my_state->strm.next_in = &zlib_in; */
+    my_state->strm.next_out = my_state->zlib_out;
+    my_state->strm.avail_out = ZLIB_CHUNKSIZE;
+    if (inflateInit(&my_state->strm) != Z_OK) {
+        return;
+    }
+}
+
+
+static void dump_md5(const char *name, const char md5[16])
+{
+    fprintf(stderr, "%s: ", name);
+    for (unsigned i=0; i<16; i++) {
+        fprintf(stderr, "%02x", (unsigned char)md5[i]);
+    }
+    fprintf(stderr, "\n");
+}
+
+static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, char calculated_md5[16])
+{
+    fprintf(stderr, "fc_firmware_md5 called\n");
+    unsigned done = 0;
+    char buffer[128];
+
+    struct MD5Context ctx;
+    MD5Init(&ctx);
+    unsigned total_read = 0;
+    while (!done) {
+        int num_read = read(readstate, buffer, sizeof(buffer));
+        total_read += num_read;
+        printf("read %u bytes (total=%u)\n", num_read, total_read);
+        if (num_read == 0) {
+            break;
+        }
+        /* for (unsigned int i=0; i<num_read;i++) { */
+        /*     fprintf(stderr, "%c", buffer[i]); */
+        /* } */
+        MD5Update(&ctx, buffer, num_read);
+    }
+
+    MD5Final(calculated_md5, &ctx);
+}
+
+void fc_find_md5_in_json(char supplied_md5[16], const char *filedata)
+{
+    char *start = json_tag_content_start(filedata, "image_md5");
+    fprintf(stderr, "start=%p\n", start);
+    if (start == NULL) {
+        set_upload_message("No MD5");
+        return;
+    }
+    for (unsigned i=0; i<32; i+=2) {
+        char x = filedata[i];
+        char y = filedata[i];
+        supplied_md5[i/2] = x<<4 | y;
+    }
 }
 
 void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filename, const char *filedata, uint32_t size)
@@ -156,7 +231,10 @@ void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filen
         fprintf(stderr, "no brace\n");
         abort();
     }
-    fprintf(stderr, "brace\n");
+
+    char supplied_md5[16];
+    fc_find_md5_in_json(supplied_md5, filedata);
+
     // I'm thoroughly convinced this is a JSON file upload...
     char *start = json_tag_content_start(filedata, "image");
     fprintf(stderr, "start=%p\n", start);
@@ -165,23 +243,22 @@ void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filen
         return;
     }
     fw_offset = start-filedata;
-    fprintf(stderr, "offset=%u\n", fw_offset);
+    fprintf(stderr, "firmware offset=%u\n", fw_offset);
     struct readstate my_state;
-    memset(&my_state, '\0', sizeof(my_state));
+    init_mystate(&my_state);
     my_state.base64_src = start;
-    my_state.offset = 0;
 
-    /* allocate inflate state */
-    my_state.strm.zalloc = Z_NULL;
-    my_state.strm.zfree = Z_NULL;
-    my_state.strm.opaque = Z_NULL;
-    my_state.strm.avail_in = 0;
-    /* my_state.strm.next_in = &zlib_in; */
-    my_state.strm.next_out = my_state.zlib_out;
-    my_state.strm.avail_out = ZLIB_CHUNKSIZE;
-    if (inflateInit(&my_state.strm) != Z_OK) {
+    char calculated_md5[16];
+    fc_firmware_md5(my_read, (void*)&my_state, calculated_md5);
+    dump_md5("supplied", supplied_md5);
+    dump_md5("calculated", calculated_md5);
+    if (!memcmp(calculated_md5, supplied_md5, sizeof(calculated_md5))) {
+        set_upload_message("md5sum failed");
         return;
     }
 
-    upgrade_fc_firmware(my_read, (void*)&my_state);
+    /* init_mystate(&my_state); */
+    /* my_state.base64_src = start; */
+
+    /* upgrade_fc_firmware(my_read, (void*)&my_state); */
 }

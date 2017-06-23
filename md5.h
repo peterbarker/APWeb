@@ -5,6 +5,9 @@
 #define HEADER_MD5_H 
 #endif
 
+#include <stdint.h>
+#define uint32 uint32_t
+
 struct MD5Context {
 	uint32 buf[4];
 	uint32 bits[2];

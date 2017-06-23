@@ -21,3 +21,6 @@ Some information on the JSON protocol used is here:
  - libtalloc-dev is required to build this project. You can install the required package with the following command: `sudo apt-get install libtalloc-dev`
  
  
+ #### Sources
+ base64 from CCAN
+ md5 from https://github.com/tridge/junkcode

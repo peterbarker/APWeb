@@ -13,7 +13,9 @@
 
 static char *json_tag_content_start(const char *json, const char *tag)
 {
-    char *start = strstr(json, tag);
+    char quoted_tag[64];
+    snprintf(quoted_tag, sizeof(quoted_tag), "\"%s\"", tag);
+    char *start = strstr(json, quoted_tag);
     if (start == NULL) {
         fprintf(stderr, "no %s\n", tag);
         return NULL;
@@ -29,7 +31,7 @@ static char *json_tag_content_start(const char *json, const char *tag)
         fprintf(stderr, "no quote");
         return NULL;
     }
-    return start+1;
+    return (start+1);
 }
 
 /*
@@ -57,7 +59,7 @@ static void my_read_decode_more_base64(struct readstate *my_state)
 {
     char quartet[4];
     unsigned qi = 0;
-    /* fprintf(stderr, "offset=%u\n", my_state->offset); */
+    /* fprintf(stderr, "offset=%u (%x)\n", my_state->offset, my_state->base64_src[my_state->offset]); */
     while (qi<4 && my_state->base64_src[my_state->offset] != '"') {
         quartet[qi] = my_state->base64_src[my_state->offset];
         my_state->offset++;
@@ -83,14 +85,11 @@ static void my_read_decode_more_base64(struct readstate *my_state)
 
 static void my_read_inflate_base64(struct readstate *my_state)
 {
-    /* fprintf(stderr, "my_read_inflate_base64 called\n"); */
     while (ZLIB_CHUNKSIZE-my_state->strm.avail_out == my_state->strm_next_out_nextbyte) {
-        /* fprintf(stderr, "iz zero\n"); */
         if (my_state->base64_decoded_bytecount == my_state->base64_decoded_nextbyte) {
             my_read_decode_more_base64(my_state);
             if (my_state->base64_decoded_bytecount == 0) {
                 // no more base64 data...
-                fprintf(stderr, "no more base64 data - all done inflating\n");
                 (void)inflateEnd(&my_state->strm);
                 return;
             }
@@ -103,13 +102,11 @@ static void my_read_inflate_base64(struct readstate *my_state)
         my_state->base64_decoded_nextbyte++;
 
         int ret = inflate(&my_state->strm, Z_NO_FLUSH);
-        /* fprintf(stderr, "after inflate: %u (%u)\n", my_state->strm.avail_in, ZLIB_CHUNKSIZE-my_state->strm.avail_out); */
         if (ret == Z_STREAM_ERROR) {
             abort();
         }
         switch (ret) {
         case Z_STREAM_END:
-            fprintf(stderr, "end\n");
             (void)inflateEnd(&my_state->strm);
             return;
         case Z_NEED_DICT:
@@ -122,14 +119,12 @@ static void my_read_inflate_base64(struct readstate *my_state)
             return;
         }
     }
-    /* fprintf(stderr, "have data\n"); */
 }
 
 
 
 static int my_read(void *_my_state, char *ret, const int len)
 {
-    /* fprintf(stderr, "my_read called for (%u) bytes\n", len); */
     struct readstate *my_state = (struct readstate*)_my_state;
     int bytes_read = 0;
     while (bytes_read < len) {
@@ -140,7 +135,6 @@ static int my_read(void *_my_state, char *ret, const int len)
             my_state->strm_next_out_nextbyte = 0;
             my_read_inflate_base64(my_state);
             if (ZLIB_CHUNKSIZE-my_state->strm.avail_out == 0) {
-                fprintf(stderr, "Break\n");
                 break;
             }
             /* fprintf(stderr, "Deflated %u bytes\n", ZLIB_CHUNKSIZE-my_state->strm.avail_out); */
@@ -184,7 +178,6 @@ static void dump_md5(const char *name, const char md5[16])
 
 static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, char calculated_md5[16])
 {
-    fprintf(stderr, "fc_firmware_md5 called\n");
     unsigned done = 0;
     char buffer[128];
 
@@ -194,7 +187,7 @@ static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, char ca
     while (!done) {
         int num_read = read(readstate, buffer, sizeof(buffer));
         total_read += num_read;
-        printf("read %u bytes (total=%u)\n", num_read, total_read);
+        /* printf("read %u bytes (total=%u)\n", num_read, total_read); */
         if (num_read == 0) {
             break;
         }
@@ -210,15 +203,16 @@ static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, char ca
 void fc_find_md5_in_json(char supplied_md5[16], const char *filedata)
 {
     char *start = json_tag_content_start(filedata, "image_md5");
-    fprintf(stderr, "start=%p\n", start);
     if (start == NULL) {
         set_upload_message("No MD5");
         return;
     }
     for (unsigned i=0; i<32; i+=2) {
-        char x = filedata[i];
-        char y = filedata[i];
-        supplied_md5[i/2] = x<<4 | y;
+        const unsigned char x = start[i];
+        const unsigned char y = start[i+1];
+        const unsigned char x1 = (x >= 'a') ? (10+x-'a') : (x-'0');
+        const unsigned char y1 = (y >= 'a') ? (10+y-'a') : (y-'0');
+        supplied_md5[i/2] = x1<<4 | y1;
     }
 }
 
@@ -237,13 +231,12 @@ void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filen
 
     // I'm thoroughly convinced this is a JSON file upload...
     char *start = json_tag_content_start(filedata, "image");
-    fprintf(stderr, "start=%p\n", start);
     if (start == NULL) {
         set_upload_message("Bad upload");
         return;
     }
     fw_offset = start-filedata;
-    fprintf(stderr, "firmware offset=%u\n", fw_offset);
+    fprintf(stderr, "firmware offset=%u (%x)\n", fw_offset, start[0]);
     struct readstate my_state;
     init_mystate(&my_state);
     my_state.base64_src = start;

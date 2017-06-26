@@ -63,7 +63,10 @@ void web_server_set_debug(int debug);
 void web_debug(int level, const char *fmt, ...);
 void mavlink_fc_write(const uint8_t *buf, size_t len);
 
+void lock_fc_serial(void);
+void unlock_fc_serial(void);
 
 #define console_printf printf
 #define console_vprintf vprintf
 
+extern int serial_port_fd;

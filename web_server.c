@@ -12,10 +12,14 @@
 
 #include <termios.h>
 
+#include <signal.h>
+
+static pthread_mutex_t fc_serial_lock;
+
 static pthread_mutex_t lock;
 static int num_sockets_open;
 static int debug_level;
-static int serial_port_fd = -1;
+int serial_port_fd = -1;
 static int fc_udp_in_fd = -1;
 static int udp_out_fd = -1;
 
@@ -157,6 +161,21 @@ void connection_destroy(struct connection_state *c)
     pthread_exit(0);
 }
 
+void lock_fc_serial(void)
+{
+    pthread_mutex_lock(&fc_serial_lock);
+}
+
+/* int try_lock_fc_serial(void) */
+/* { */
+/*     return pthread_mutex_trylock(&fc_serial_lock) != -1; */
+/* } */
+
+void unlock_fc_serial(void)
+{
+    pthread_mutex_unlock(&fc_serial_lock);
+}
+
 
 /*
   write some data to the flight controller
@@ -164,7 +183,9 @@ void connection_destroy(struct connection_state *c)
 void mavlink_fc_write(const uint8_t *buf, size_t size)
 {
     if (serial_port_fd != -1) {
+        lock_fc_serial();
         write(serial_port_fd, buf, size);
+        unlock_fc_serial();
     }
     if (fc_udp_in_fd != -1) {
         if (fc_addrlen != 0) {
@@ -172,6 +193,7 @@ void mavlink_fc_write(const uint8_t *buf, size_t size)
         }
     }
 }
+
 
 /*
   send a mavlink message to flight controller
@@ -186,6 +208,15 @@ void mavlink_fc_send(mavlink_message_t *msg)
         uint16_t len = mavlink_msg_to_send_buffer(buf, msg);
         mavlink_fc_write(buf, len);
     }
+}
+
+static int mavlink_fc_read_serial(uint8_t *buf, const size_t bufsize)
+{
+    int ret = -1;
+    lock_fc_serial();
+    ret = read(serial_port_fd, buf, bufsize);
+    unlock_fc_serial();
+    return ret;
 }
 
 /*
@@ -428,9 +459,9 @@ static void select_loop(int http_socket_fd, int udp_socket_fd)
         // check for incoming bytes from flight controller
         if (FD_ISSET(serial_port_fd, &fds)) {
             uint8_t buf[200];
-            ssize_t nread = read(serial_port_fd, buf, sizeof(buf));
+            ssize_t nread = mavlink_fc_read_serial(buf, sizeof(buf));
             if (nread <= 0) {
-                printf("Read error from flight controller: %s\n", strerror(errno));
+                /* printf("Read error from flight controller: %s\n", strerror(errno)); */
                 // we should re-open serial port
                 /* exit(1); */
             } else {
@@ -616,6 +647,18 @@ static int udp_out_open(const char *ip, const int port)
     return res;
 }
 
+static void handler_sigpipe(int signum)
+{
+    fprintf(stderr, "Caught sigpipe\n");
+}
+
+void install_sigpipe_handler()
+{
+    if (signal(SIGPIPE, handler_sigpipe) == SIG_ERR) {
+        fprintf(stderr, "Failed to install sigpipe handler\n");
+        abort();
+    }
+}
 
 /* main program, start listening and answering queries */
 int main(int argc, char *argv[])
@@ -660,6 +703,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    install_sigpipe_handler();
+
     if (fc_udp_in_port !=-1 && serial_port != NULL) {
         // don't want to muck around with multiple mavlink channels
         console_printf("Only one of serial port and udp-in-port (-s and -u) can be supplied");
@@ -667,7 +712,8 @@ int main(int argc, char *argv[])
     }
 
     pthread_mutex_init(&lock, NULL);
-    
+    pthread_mutex_init(&fc_serial_lock, NULL);
+
     if (serial_port) {
         serial_port_fd = mavlink_serial_open(serial_port, baudrate);
         if (serial_port_fd == -1) {

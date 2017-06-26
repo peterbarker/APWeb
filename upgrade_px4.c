@@ -11,7 +11,7 @@
 
 #define CHUNK 16384
 
-static char *json_tag_content_start(const char *json, const char *tag)
+static char *json_tag_value_start(const char *json, const char *tag)
 {
     char quoted_tag[64];
     snprintf(quoted_tag, sizeof(quoted_tag), "\"%s\"", tag);
@@ -20,18 +20,20 @@ static char *json_tag_content_start(const char *json, const char *tag)
         fprintf(stderr, "no %s\n", tag);
         return NULL;
     }
+
     start = strchr(start, ':');
     if (start == NULL) {
         fprintf(stderr, "no :\n");
         return NULL;
     }
+    start += 1; // skip the colon
 
-    start = strchr(start, '"');
-    if (start == NULL) {
-        fprintf(stderr, "no quote");
-        return NULL;
+    // skip whitespace
+    while (*start != '\0' && isspace(*start)) {
+        start++;
     }
-    return (start+1);
+
+    return (start);
 }
 
 /*
@@ -97,7 +99,7 @@ static void my_read_inflate_base64(struct readstate *my_state)
         }
 
         my_state->strm.avail_in = 1;
-        my_state->strm.next_in = &my_state->base64_decoded_bytes[my_state->base64_decoded_nextbyte];
+        my_state->strm.next_in = (unsigned char*)&my_state->base64_decoded_bytes[my_state->base64_decoded_nextbyte];
         /* fprintf(stderr, "feeding 0x%02x\n", my_state->strm.next_in[0]); */
         my_state->base64_decoded_nextbyte++;
 
@@ -148,7 +150,7 @@ static int my_read(void *_my_state, char *ret, const int len)
     return bytes_read;
 }
 
-void init_mystate(struct readstate *my_state)
+static void init_mystate(struct readstate *my_state)
 {
     memset(my_state, '\0', sizeof(*my_state));
     my_state->offset = 0;
@@ -167,7 +169,7 @@ void init_mystate(struct readstate *my_state)
 }
 
 
-static void dump_md5(const char *name, const char md5[16])
+static void dump_md5(const char *name, const unsigned char md5[16])
 {
     fprintf(stderr, "%s: ", name);
     for (unsigned i=0; i<16; i++) {
@@ -176,15 +178,14 @@ static void dump_md5(const char *name, const char md5[16])
     fprintf(stderr, "\n");
 }
 
-static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, char calculated_md5[16])
+static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, unsigned char calculated_md5[16], unsigned long *total_length)
 {
-    unsigned done = 0;
     char buffer[128];
 
     struct MD5Context ctx;
     MD5Init(&ctx);
     unsigned total_read = 0;
-    while (!done) {
+    while (true) {
         int num_read = read(readstate, buffer, sizeof(buffer));
         total_read += num_read;
         /* printf("read %u bytes (total=%u)\n", num_read, total_read); */
@@ -194,19 +195,36 @@ static void fc_firmware_md5(int(read)(void*,char*,int), void *readstate, char ca
         /* for (unsigned int i=0; i<num_read;i++) { */
         /*     fprintf(stderr, "%c", buffer[i]); */
         /* } */
-        MD5Update(&ctx, buffer, num_read);
+        MD5Update(&ctx, (unsigned char*)buffer, num_read);
     }
 
     MD5Final(calculated_md5, &ctx);
+    *total_length = total_read;
+}
+static void fc_firmware_length(int(read)(void*,char*,int), void *readstate, unsigned long *total_length)
+{
+    char buffer[128];
+
+    unsigned total_read = 0;
+    while (true) {
+        int num_read = read(readstate, buffer, sizeof(buffer));
+        total_read += num_read;
+        if (num_read == 0) {
+            break;
+        }
+    }
+
+    *total_length = total_read;
 }
 
-void fc_find_md5_in_json(char supplied_md5[16], const char *filedata)
+static int fc_find_md5_in_json(unsigned char supplied_md5[16], const char *filedata)
 {
-    char *start = json_tag_content_start(filedata, "image_md5");
+    char *start = json_tag_value_start(filedata, "image_md5");
     if (start == NULL) {
         set_upload_message("No MD5");
-        return;
+        return -1;
     }
+    start += 1; // skip opening quote
     for (unsigned i=0; i<32; i+=2) {
         const unsigned char x = start[i];
         const unsigned char y = start[i+1];
@@ -214,44 +232,81 @@ void fc_find_md5_in_json(char supplied_md5[16], const char *filedata)
         const unsigned char y1 = (y >= 'a') ? (10+y-'a') : (y-'0');
         supplied_md5[i/2] = x1<<4 | y1;
     }
+    return 0;
+}
+
+static int fc_find_image_size_in_json(unsigned int *supplied_size, const char *filedata)
+{
+    char *start = json_tag_value_start(filedata, "image_size");
+    if (start == NULL) {
+        set_upload_message("No image_size");
+        return -1;
+    }
+    *supplied_size = atoi(start);
+    return *supplied_size != 0;
 }
 
 void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filename, const char *filedata, uint32_t size)
 {
     console_printf("ardupilot_upgrade: size=%u\n", size);
+    if (serial_port_fd == -1) {
+        set_upload_message("Not connected via serial port");
+        return;
+    }
+
     set_upload_progress(1);
-    uint32_t fw_offset;
     if (filedata[0] != '{') {
         fprintf(stderr, "no brace\n");
         abort();
     }
 
-    char supplied_md5[16];
-    fc_find_md5_in_json(supplied_md5, filedata);
-
-    // I'm thoroughly convinced this is a JSON file upload...
-    char *start = json_tag_content_start(filedata, "image");
+    char *start = json_tag_value_start(filedata, "image");
+    start += 1; // skip opening quote
     if (start == NULL) {
         set_upload_message("Bad upload");
         return;
     }
-    fw_offset = start-filedata;
-    fprintf(stderr, "firmware offset=%u (%x)\n", fw_offset, start[0]);
+    unsigned int supplied_image_size;
+    if (fc_find_image_size_in_json(&supplied_image_size, filedata) != 0) {
+        set_upload_message("No supplied image size");
+    }
+    /* uint32_t fw_offset; */
+    /* fw_offset = start-filedata; */
+    /* fprintf(stderr, "firmware offset=%u (%x)\n", fw_offset, start[0]); */
+    unsigned long total_length = 0;
+    unsigned char supplied_md5[16];
+    if (fc_find_md5_in_json(supplied_md5, filedata) == 0) {
+        struct readstate my_state;
+        init_mystate(&my_state);
+        my_state.base64_src = start;
+
+        unsigned char calculated_md5[16];
+        fc_firmware_md5(my_read, (void*)&my_state, calculated_md5, &total_length);
+        dump_md5("supplied", supplied_md5);
+        dump_md5("calculated", calculated_md5);
+        if (memcmp(calculated_md5, supplied_md5, sizeof(calculated_md5))) {
+            set_upload_message("md5sum failed");
+            return;
+        }
+        set_upload_message("md5sum match");
+    } else {
+        // still want the length of the binary for progress
+        struct readstate my_state;
+        init_mystate(&my_state);
+        my_state.base64_src = start;
+        fc_firmware_length(my_read, (void*)&my_state, &total_length);
+    }
+
+    if (supplied_image_size != 0 &&
+        total_length != supplied_image_size) {
+        fprintf(stderr, "image size mismatch (%lu) vs (%u)", total_length, supplied_image_size);
+        set_upload_message("image size mismatch");
+        return;
+    }
+
     struct readstate my_state;
     init_mystate(&my_state);
     my_state.base64_src = start;
 
-    char calculated_md5[16];
-    fc_firmware_md5(my_read, (void*)&my_state, calculated_md5);
-    dump_md5("supplied", supplied_md5);
-    dump_md5("calculated", calculated_md5);
-    if (!memcmp(calculated_md5, supplied_md5, sizeof(calculated_md5))) {
-        set_upload_message("md5sum failed");
-        return;
-    }
-
-    /* init_mystate(&my_state); */
-    /* my_state.base64_src = start; */
-
-    /* upgrade_fc_firmware(my_read, (void*)&my_state); */
+    upgrade_fc_firmware(my_read, (void*)&my_state, total_length);
 }

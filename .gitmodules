@@ -1,3 +1,9 @@
 [submodule "modules/mavlink"]
 	path = modules/mavlink
 	url = git://github.com/ArduPilot/mavlink
+[submodule "APBootLoaderClient"]
+	path = APBootLoaderClient
+	url = git://github.com/peterbarker/APBootLoaderClient
+[submodule "modules/APBootLoaderClient"]
+	path = modules/APBootLoaderClient
+	url = git://github.com/peterbarker/APBootLoaderClient

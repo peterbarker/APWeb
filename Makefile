@@ -1,8 +1,8 @@
 CC=gcc
-CFLAGS=-Wall -g -Werror -std=gnu99
+CFLAGS=-Wall -g -Werror -std=gnu99 -Imodules/APBootLoaderClient
 
 SRC = $(wildcard *.c) $(wildcard lib/*.c) $(wildcard linux/*.c) $(wildcard posix/*.c)
-OBJ = $(SRC:%.c=%.o)
+OBJ = $(SRC:%.c=%.o) modules/APBootLoaderClient/bootloader_client.o
 LIBS = -ltalloc -lpthread -lz
 
 all: files/embedded.c mavlink web_server

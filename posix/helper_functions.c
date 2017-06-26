@@ -168,7 +168,7 @@ static int get_bootloader()
     return -1;
 }
 
-void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsigned long total_length)
+void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsigned long total_length, const uint32_t expected_board_id)
 {
     char buffer[bl_prog_multi_chunksize];
     unsigned long total_written = 0;
@@ -186,6 +186,20 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
         failmessage("Failed to get bootloader");
         goto OUT_BAD_BOOTLOADER;
     }
+
+
+    uint32_t fc_board_id;
+    if (bootloader_get_board_id(&fc_board_id) == -1) {
+        set_upload_message("Failed to retrieve board ID");
+        goto OUT_BAD_BOOTLOADER;
+    }
+
+    if (fc_board_id != expected_board_id) {
+        set_upload_message("This firmware is not appropriate for this board");
+        goto OUT_BAD_BOOTLOADER;
+    }
+
+    set_upload_message("Board ID correct");
 
     set_upload_message("Erasing Flash");
     bootloader_erase_send();

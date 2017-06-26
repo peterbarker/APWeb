@@ -246,6 +246,17 @@ static int fc_find_image_size_in_json(unsigned int *supplied_size, const char *f
     return *supplied_size != 0;
 }
 
+static int fc_find_board_id_in_json(unsigned int *supplied, const char *filedata)
+{
+    char *start = json_tag_value_start(filedata, "board_id");
+    if (start == NULL) {
+        set_upload_message("No board_id");
+        return -1;
+    }
+    *supplied = atoi(start);
+    return *supplied != 0;
+}
+
 void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filename, const char *filedata, uint32_t size)
 {
     console_printf("ardupilot_upgrade: size=%u\n", size);
@@ -269,6 +280,10 @@ void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filen
     unsigned int supplied_image_size;
     if (fc_find_image_size_in_json(&supplied_image_size, filedata) != 0) {
         set_upload_message("No supplied image size");
+    }
+    unsigned int supplied_board_id;
+    if (fc_find_board_id_in_json(&supplied_board_id, filedata) != 0) {
+        set_upload_message("No supplied board type");
     }
     /* uint32_t fw_offset; */
     /* fw_offset = start-filedata; */
@@ -308,5 +323,5 @@ void handle_ardupilot_upgrade_px4(struct template_state *tmpl, const char *filen
     init_mystate(&my_state);
     my_state.base64_src = start;
 
-    upgrade_fc_firmware(my_read, (void*)&my_state, total_length);
+    upgrade_fc_firmware(my_read, (void*)&my_state, total_length, supplied_board_id);
 }

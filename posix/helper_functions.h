@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, unsigned long total_length);
+void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, unsigned long total_length, uint32_t expected_board_id);
 
 #endif

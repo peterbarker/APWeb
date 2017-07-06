@@ -114,7 +114,7 @@ static int try_get_sync()
 {
     struct termios options;
     if (tcgetattr(serial_port_fd, &options) == -1) {
-        failmessage("Failed to get serial options: %m\n");
+        failmessage("Failed to get serial options: %m");
         return -1;
     }
     // attempt to sync at all rates:
@@ -142,7 +142,7 @@ static int get_bootloader()
 {
     struct termios options;
     if (tcgetattr(serial_port_fd, &options) == -1) {
-        failmessage("Failed to get serial options: %m\n");
+        failmessage("Failed to get serial options: %m");
         return -1;
     }
 
@@ -191,7 +191,7 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
 
     struct termios options; // so we can restore
     if (tcgetattr(serial_port_fd, &options) == -1) {
-        failmessage("Failed to get serial options: %m\n");
+        failmessage("Failed to get serial options: %m");
         goto OUT_BAD_GETATTR;
     }
 

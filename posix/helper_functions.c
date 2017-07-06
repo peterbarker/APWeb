@@ -15,6 +15,7 @@
 ssize_t bootloader_write(const uint8_t *bytes, const size_t bytecount, const bl_timeout_t timeout)
 {
     const ssize_t written = write(serial_port_fd, bytes, bytecount);
+    tcflush(serial_port_fd, TCIOFLUSH);
     if (written < bytecount) {
         abort();
     }

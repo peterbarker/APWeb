@@ -22,6 +22,18 @@ ssize_t bootloader_write(const uint8_t *bytes, const size_t bytecount, const bl_
     return written;
 }
 
+static void debug(const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    fprintf(stderr, "%lu.%06lu: ", tv.tv_sec, tv.tv_usec);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+}
+
 ssize_t bootloader_readbyte(uint8_t *byte, const bl_timeout_t timeout)
 {
     ssize_t numread = 0;
@@ -36,23 +48,23 @@ ssize_t bootloader_readbyte(uint8_t *byte, const bl_timeout_t timeout)
 
     int selret = select(serial_port_fd+1, &fds, NULL, &fd_errs, &tv);
     if (selret == -1) {
-        fprintf(stderr, "select error\n");
+        debug("select error");
         return 0;
     }
     if (selret == 0) {
-        fprintf(stderr, "select timeout\n");
+        debug("select timeout");
         return 0;
     }
     if (!FD_ISSET(serial_port_fd, &fds)) {
-        fprintf(stderr, "not set\n");
+        debug("not set");
         return 0;
     }
     if (FD_ISSET(serial_port_fd, &fd_errs)) {
-        fprintf(stderr, "error\n");
+        debug("error");
         return 0;
     }
     numread += read(serial_port_fd, byte, 1);
-    fprintf(stderr, "got byte (0x%02x)\n", *byte);
+    debug("got byte (0x%02x)", *byte);
     return numread;
 }
 
@@ -71,7 +83,7 @@ void bootloader_debug(const char  *format, ...)
 
 static void failmessage(const char *msg)
 {
-    fprintf(stderr, "%s\n", msg);
+    debug("%s", msg);
     set_upload_message(msg);
 }
 
@@ -81,9 +93,9 @@ static void failmessage(const char *msg)
     tcflush(serial_port_fd, TCOFLUSH);
     uint8_t unused;
     while (bootloader_readbyte(&unused, 0) != 0) {
-        fprintf(stderr, "drained a byte\n");
+        debug("drained a byte");
     }
-    fprintf(stderr, "done draining\n");
+    debug("done draining");
 }
 
 
@@ -109,11 +121,11 @@ static int try_get_sync()
     for (uint8_t i=0; i<ARRAY_LEN(serial_configs); i++) {
         serial_config_t config = serial_configs[i];
         set_upload_message("Resetting baud rate");
-        fprintf(stderr, "Trying baud: %s\n", config.name);
+        debug("Trying baud: %s", config.name);
         cfsetispeed(&options, config.baud);
         cfsetospeed(&options, config.baud);
         if (tcsetattr(serial_port_fd, TCSANOW, &options) == -1) {
-            fprintf(stderr, "Failed to set serial (%i) to %s: %m\n", serial_port_fd, config.name);
+            debug("Failed to set serial (%i) to %s: %m", serial_port_fd, config.name);
             continue;
         }
         for (uint8_t j=0;j<5;j++) {
@@ -152,7 +164,7 @@ static int get_bootloader()
             cfsetispeed(&options, config.baud);
             cfsetospeed(&options, config.baud);
             if (tcsetattr(serial_port_fd, TCSANOW, &options) == -1) {
-                fprintf(stderr, "Failed to set serial (%i) to %s for mavlink reboot: %m\n", serial_port_fd, config.name);
+                debug("Failed to set serial (%i) to %s for mavlink reboot: %m", serial_port_fd, config.name);
                 continue;
             }
             bootloader_send_mavlink_reboot();
@@ -174,7 +186,7 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
     char buffer[bl_prog_multi_chunksize];
     unsigned long total_written = 0;
 
-    fprintf(stderr, "upgrade_fc_firmware called\n");
+    debug("upgrade_fc_firmware called");
     lock_fc_serial();
 
     struct termios options; // so we can restore
@@ -209,9 +221,9 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
     for (uint8_t i=0; i<steps; i++) {
         bl_reply_t status;
         if (bootloader_recv_sync(&status, 100) == -1) {
-            fprintf(stderr, "\nFailed to get sync\n");
+            debug("Failed to get sync");
         } else {
-            fprintf(stderr, "\nGot sync\n");
+            debug("Got sync");
             erase_done = 1;
             break;
         }
@@ -233,12 +245,12 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
         gettimeofday(&tv_stop, NULL);
         if (num_read == 0) {
             // done - I hope
-            fprintf(stderr, "Done - I hope\n");
+            debug("Done - I hope");
             break;
         }
-        printf("read %u bytes in (%lu.%lu)to (%lu.%lu)\n", num_read, tv_start.tv_sec, tv_start.tv_usec, tv_stop.tv_sec, tv_stop.tv_usec);
+        debug("read %u bytes", num_read);
         if (bootloader_program_chunk((unsigned char*)buffer, num_read) != 0) {
-            fprintf(stderr, "Error writing to bootloader\n");
+            debug("Error writing to bootloader");
             goto OUT_BAD_BOOTLOADER;
         }
         total_written += num_read;
@@ -253,10 +265,10 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
     // finalise calculation of our CRC:
     uint32_t fw_size;
     if (bootloader_get_fw_size(&fw_size) == -1) {
-    	fprintf(stderr, "Failed to get fw_size\n");
+    	debug("Failed to get fw_size");
     	goto OUT_BAD_BOOTLOADER;
     }
-    fprintf(stderr, "Got fw_size (%u)\n", fw_size);
+    debug("Got fw_size (%u)", fw_size);
 
     uint32_t padlen = fw_size;
     const uint8_t bootloader_crcpad[] =  { '\xff', '\xff', '\xff', '\xff' };
@@ -270,16 +282,16 @@ void upgrade_fc_firmware(int(read)(void*,char*,int), void *readstate, const unsi
         set_upload_message("Failed to get FC CRC");
         goto OUT_BAD_BOOTLOADER;
     } else {
-        fprintf(stderr, "Got FC crc (%x)\n", fc_crc);
+        debug("Got FC crc (%x)", fc_crc);
     }
     if (calculated_crc != fc_crc) {
-        fprintf(stderr, "CRC mismatch (calculated=%x) (bl says %x)\n", calculated_crc, fc_crc);
+        debug("CRC mismatch (calculated=%x) (bl says %x)", calculated_crc, fc_crc);
         set_upload_message("CRC mismatch");
         goto OUT_BAD_BOOTLOADER;
     }
 
     set_upload_message("CRCs match");
-    fprintf(stderr, "CRCs match\n");
+    debug("CRCs match");
 
     set_upload_message("Booting ArduPilot");
     if (bootloader_boot() == -1) {

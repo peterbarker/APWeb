@@ -506,6 +506,7 @@ static int mavlink_serial_open(const char *path, unsigned baudrate)
     t.c_iflag &= ~(BRKINT | ICRNL | IMAXBEL | IXON | IXOFF);
     t.c_oflag &= ~(OPOST | ONLCR);
     t.c_lflag &= ~(ISIG | ICANON | IEXTEN | ECHO | ECHOE | ECHOK | ECHOCTL | ECHOKE);
+    t.c_cc[VTIME] = 0;
     t.c_cc[VMIN] = 0;
     t.c_cflag &= ~CRTSCTS;
 

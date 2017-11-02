@@ -435,6 +435,7 @@ static void set_ssid(struct template_state *tmpl, const char *name, const char *
     const char *channel = argv[3];
     if (!ssid || !password || !authtype || !channel) {
         sock_printf(tmpl->sock, "invalid SSID or password\n");
+        return;
     }
 
     int auth_mode = atoi(authtype);

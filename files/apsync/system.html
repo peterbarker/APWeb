@@ -64,6 +64,41 @@ WiFi Channel:
 <br><input type="submit" name="action" value="Set SSID and Password" onclick="set_ssid();" />
 </fieldset>
 
+<fieldset>
+  <legend>WiFi Client Configuration</legend>
+  WiFi SSID:<br>
+<input type="text" id="client_ssid" value=""><br>
+WiFi Password:<br>
+<input type="password" id="client_password" value="">
+<input type="checkbox" onchange="document.getElementById('client_password').type = this.checked ? 'text' : 'password'">Show password<br>
+Auth Type:
+<select name="client_authmode" id="client_authmode">
+  <option value="0">None</option>
+  <option value="1">WEP</option>
+  <option value="2">WPA</option>
+  <option value="3">WPA2</option>
+</select>
+WiFi Channel:
+<select name="client_channel" id="client_channel">
+  <option value="0">0</option>
+  <option value="1">1</option>
+  <option value="2">2</option>
+  <option value="3">3</option>
+  <option value="4">4</option>
+  <option value="5">5</option>
+  <option value="6">6</option>
+  <option value="7">7</option>
+  <option value="8">8</option>
+  <option value="9">9</option>
+  <option value="10">10</option>
+  <option value="11">11</option>
+  <option value="12">12</option>
+  <option value="13">13</option>
+  <option value="14">14</option>
+</select>
+<br><input type="submit" name="action" value="Set Client SSID and Password" onclick="set_client_ssid();" />
+</fieldset>
+
 <script>
     function set_ssid(action) {
         var args = [
@@ -77,6 +112,20 @@ WiFi Channel:
 
     // get the wifi information
     command_send('get_ssid()', {filljson : true});
+
+    function set_client_ssid(action) {
+        var args = [
+            document.getElementById("client_ssid").value,
+            document.getElementById("client_password").value,
+            document.getElementById("client_authmode").value,
+            document.getElementById("client_channel").value];
+        var cmd = "set_client_ssid(" + args.join() + ")";
+        command_send(cmd, {fillid:"command_result"});
+    }
+
+    // get the wifi information
+    command_send('get_client_ssid()', {filljson : true});
+
 </script>
 
 <hr/>

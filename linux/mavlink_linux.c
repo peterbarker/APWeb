@@ -51,8 +51,8 @@ static struct mavlink_command_ack *command_acks;
 static void send_stream_rates_request(uint8_t rate)
 {
     mavlink_msg_request_data_stream_send(MAVLINK_COMM_FC,
-                                         MAVLINK_TARGET_SYSTEM_ID,
-                                         0,
+                                         mavlink_target_sysid(),
+                                         mavlink_target_compid(),
                                          MAV_DATA_STREAM_ALL,
                                          rate, 1);
 }
@@ -79,8 +79,8 @@ static void mavlink_periodic(void)
         console_printf("requesting parameters param_count=%u param_expected_count=%u\n",
                        param_count, param_expected_count);
         mavlink_msg_param_request_list_send(MAVLINK_COMM_FC,
-                                            MAVLINK_TARGET_SYSTEM_ID,
-                                            0);
+                                            mavlink_target_sysid(),
+                                            mavlink_target_compid());
     }
 
     last_heartbeat = now;
@@ -335,5 +335,10 @@ bool mavlink_handle_msg(const mavlink_message_t *msg)
 void mavlink_param_set(const char *name, float value)
 {
     console_printf("Setting parameter %s to %f\n", name, value);
-    mavlink_msg_param_set_send(MAVLINK_COMM_FC, MAVLINK_TARGET_SYSTEM_ID, 0, name, value, 0);
+    mavlink_msg_param_set_send(MAVLINK_COMM_FC,
+                               mavlink_target_sysid(),
+                               mavlink_target_compid(),
+                               name,
+                               value,
+                               0);
 }

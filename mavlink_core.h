@@ -26,6 +26,9 @@ void comm_send_ch(mavlink_channel_t chan, uint8_t ch);
 
 #define MAVLINK_USE_CONVENIENCE_FUNCTIONS
 #include <generated/mavlink/ardupilotmega/mavlink.h>
+#ifndef MAV_COMP_ID_AUTOPILOT1
+#define MAV_COMP_ID_AUTOPILOT1 1
+#endif
 
 // alias for link to flight controller
 #define MAVLINK_COMM_FC MAVLINK_COMM_0
@@ -33,7 +36,8 @@ void comm_send_ch(mavlink_channel_t chan, uint8_t ch);
 // link to real FC when using SITL, for RC_CHANNELS
 #define MAVLINK_COMM_RC MAVLINK_COMM_1
 
-#define MAVLINK_SYSTEM_ID 67
-#define MAVLINK_TARGET_SYSTEM_ID 1
+// mavlink target information; if a packet needs to be sent to a
+// target, this system id should be used.  These must be implemented...
+uint8_t mavlink_target_sysid(void);
+uint8_t mavlink_target_compid(void);
 
-#define MAVLINK_COMPONENT_ID_REMOTE_LOG 72

@@ -323,6 +323,7 @@ function command_send(command, options) {
         }
     } else {
         form.append("command1", command);
+        console.log("Command val " + command);
     }
     xhr.send(form);
 }

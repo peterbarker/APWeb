@@ -755,11 +755,19 @@ static void get_param(struct template_state *tmpl, const char *name, const char 
     }
 }
 
+static void get_camera_details(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    fprintf(stderr, "getting cam details!");
+    sock_printf(tmpl->sock, "Getting cam info!");
+}
+
 /*
   get parameter list
  */
 static void get_param_list(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
+    fprintf(stderr, "getting cam details!");
+
     bool first = true;
     uint16_t i;
     sock_printf(tmpl->sock, "[ ");
@@ -1061,4 +1069,5 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "process_content", "", process_content);
     tmpl->put(tmpl, "get_param", "", get_param);
     tmpl->put(tmpl, "get_param_list", "", get_param_list);
+    tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
 }

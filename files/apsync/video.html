@@ -3,10 +3,10 @@
   <head>
     <title>ArduPilot</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="css/styles.css">
-    <script type="text/javascript" src="js/config.js"></script>
-    <script type="text/javascript" src="js/cors.js"></script>
-    <script type="text/javascript" src="js/mavlink.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/cors.js"></script>
+    <script type="text/javascript" src="/js/mavlink.js"></script>
   </head>
 <body>
 
@@ -24,6 +24,7 @@
     // 1 - mtpt
     // 2 - camtype
     function fill_rtsp_table(cam_data) {
+        console.log(cam_data);
         var table = document.getElementById("rtsp_table");
 
         // delete any existing rows
@@ -46,7 +47,9 @@
     function refresh() {
         // command_send()
         var x = "dasda";
-        fill_rtsp_table(x);
+        // fill_rtsp_table(x);
+        console.log("test debug");
+        command_send("get_camera_details()", { "onload" : fill_rtsp_table });
     }
 </script>
 </html>

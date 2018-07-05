@@ -535,7 +535,7 @@ unsigned mavlink_fc_pkt_count()
 static void select_loop(int http_socket_fd, int udp_socket_fd)
 {    
     while (1) {
-    fprintf(stderr, "In select loop!");
+    // fprintf(stderr, "In select loop!");
         fd_set fds;
         struct timeval tv;
         int numfd = 0;

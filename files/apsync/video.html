@@ -17,8 +17,36 @@
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 
 <table id="rtsp_table" class="rtsp">
-  <tr><th>Camera Name</th><th class="alnright">Mount Point</th><th>Options</th><th>Camera Type</th></tr>
+  <tr><th>Camera Name</th><th class="alnright">Mount Point</th><th>Camera Type</th></tr>
 </table>
 <script>
+    // 0 - name
+    // 1 - mtpt
+    // 2 - camtype
+    function fill_rtsp_table(cam_data) {
+        var table = document.getElementById("rtsp_table");
+
+        // delete any existing rows
+        var nrows = table.rows.length;
+        for (var i=nrows-1; i>0; i--) {
+            table.deleteRow(i);
+        }
+        for (var i = 0; i < 5; i++) {
+            var row = table.insertRow(table.rows.length);
+
+            var cell0 = row.insertCell(0);
+            var cell1 = row.insertCell(1);
+            var cell2 = row.insertCell(2);
+
+            cell0.innerHTML = "camname" + i;
+            cell1.innerHTML = "mount" + i;
+            cell2.innerHTML = "h264" + i;
+        }
+    }
+    function refresh() {
+        // command_send()
+        var x = "dasda";
+        fill_rtsp_table(x);
+    }
 </script>
 </html>

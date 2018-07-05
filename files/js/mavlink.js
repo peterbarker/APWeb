@@ -271,6 +271,7 @@ function command_send(command, options) {
     options = options || {}
     var args = Array.prototype.slice.call(arguments);
     var xhr = createCORSRequest("POST", drone_url + "/ajax/command.json");
+    console.log("DRONE URL - " + drone_url);
     var form = new FormData();
     if (options['onload']) {
         xhr.onload = function() {

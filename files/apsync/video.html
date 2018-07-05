@@ -1,0 +1,24 @@
+<!DOCTYPE HTML>
+<html manifest="manifest.appcache">
+  <head>
+    <title>ArduPilot</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="text/javascript" src="js/config.js"></script>
+    <script type="text/javascript" src="js/cors.js"></script>
+    <script type="text/javascript" src="js/mavlink.js"></script>
+  </head>
+<body>
+
+<p><a href="/index.html"><img src="/images/main_logo.png" alt="ArduPilot"></a></p>
+
+<h1>Video Streaming</h1>
+
+<p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
+
+<table id="rtsp_table" class="rtsp">
+  <tr><th>Camera Name</th><th class="alnright">Mount Point</th><th>Options</th><th>Camera Type</th></tr>
+</table>
+<script>
+</script>
+</html>

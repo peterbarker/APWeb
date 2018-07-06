@@ -8,6 +8,7 @@
 #include "mavlink_json.h"
 #include "mavlink_core.h"
 #include "cgi.h"
+#include "rtsp_ipc.h"
 
 #ifdef _POSIX_VERSION
 #include "posix/functions.h"
@@ -758,6 +759,7 @@ static void get_param(struct template_state *tmpl, const char *name, const char 
 static void get_camera_details(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     fprintf(stderr, "getting cam details!\n");
+    // sock_printf(tmpl->sock, "Getting cam info!");
 }
 
 /*

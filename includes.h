@@ -12,8 +12,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <libmid_fatfs/ff.h>
 #include "socket_ctrl.h"
 #include <generated/snx_sdk_conf.h>

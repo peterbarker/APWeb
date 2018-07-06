@@ -759,7 +759,9 @@ static void get_param(struct template_state *tmpl, const char *name, const char 
 static void get_camera_details(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     fprintf(stderr, "getting cam details!\n");
-    // sock_printf(tmpl->sock, "Getting cam info!");
+    char msg[1000];
+    get_server_response(GET_DEVICE_PROPS, msg, NULL);
+    sock_printf(tmpl->sock, "%s", msg);
 }
 
 /*

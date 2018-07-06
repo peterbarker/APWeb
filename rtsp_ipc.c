@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-const char SOCKET_PATH[80] = "/tmp/mysocket";
+const char SOCKET_PATH[80] = "/tmp/rtsp_server";
 const char* RTSP_MESSAGE_HEADER[] = {"GDP",
                                      "TMP", 
                                      "RES"};
@@ -23,30 +23,27 @@ void get_server_response(RTSP_MESSAGE_TYPE type, char* reply, char* args)
     strcpy(addr.sun_path, SOCKET_PATH);
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        reply[0] = '\0';
         fprintf(stderr, "Connect error");
-    }
-
-    switch(type) {
-    case GET_DEVICE_PROPS:
-        write(fd, "GDP", 4);
-        break;
-    default:
-        fprintf(stderr, "Not implemented yet!");
-    }
-
-    char read_buffer[1000];
-    read_buffer[0] = '\0';
-    int bytes_read = recv(fd, read_buffer, sizeof(read_buffer), 0);
-    printf("\nRead buffer - %s with bytes - %d \n", read_buffer, bytes_read);
-    read_buffer[bytes_read] = '\0';
-    if (bytes_read != -1) {
-        // reply = strdup(read_buffer);
-        // reply[strlen(read_buffer)-1] =
-        strcpy(reply, read_buffer);
     } else {
-        reply = NULL;
+        switch(type) {
+        case GET_DEVICE_PROPS:
+            write(fd, "GDP", 4);
+            break;
+        default:
+            fprintf(stderr, "Not implemented yet!");
+        }
+
+        char read_buffer[1000];
+        read_buffer[0] = '\0';
+        int bytes_read = recv(fd, read_buffer, sizeof(read_buffer), 0);
+        printf("\nRead buffer - %s with bytes - %d \n", read_buffer, bytes_read);
+        read_buffer[bytes_read] = '\0';
+        if (bytes_read != -1) {
+            strcpy(reply, read_buffer);
+        }
+        close(fd);
     }
-    close(fd);
 }
 
 RTSP_MESSAGE_TYPE get_message_type(char* header)

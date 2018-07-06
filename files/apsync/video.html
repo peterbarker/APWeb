@@ -16,8 +16,8 @@
 
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 
-<table id="rtsp_table" class="rtsp">
-  <tr><th>Camera Name</th><th class="alnright">Mount Point</th><th>Camera Type</th></tr>
+<table id="rtsp_table" class="parameters">
+  <tr><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Camera Type</th></tr>
 </table>
 <script>
     // 0 - name
@@ -32,21 +32,50 @@
         for (var i=nrows-1; i>0; i--) {
             table.deleteRow(i);
         }
-        for (var i = 0; i < 5; i++) {
-            var row = table.insertRow(table.rows.length);
 
-            var cell0 = row.insertCell(0);
-            var cell1 = row.insertCell(1);
-            var cell2 = row.insertCell(2);
+        if (cam_data == "ERROR\n") {
+            console.log("error str");
+            alert("Cannot connect to the local RTSP Stream server");    
+        } else {
+            var plist;
+            try {
+                plist = JSON.parse(cam_data);
+                plist.sort(function(a,b) {
+                    if (a.mount < b.mount) {
+                        return -1;
+                    }
+                    if (a.mount > b.mount) {
+                        return 1;
+                    }
+                    return 0;
+                });
+            } catch(e) {
+                console.log(e);
+                return;
+            }
 
-            cell0.innerHTML = "camname" + i;
-            cell1.innerHTML = "mount" + i;
-            cell2.innerHTML = "h264" + i;
+            var n = plist.length;
+            for (var i=0; i<n; i++) {
+                var row = table.insertRow(table.rows.length);
+                var rowdata = plist[i];
+                row.insertCell(0).innerHTML = rowdata.name;
+                var mount_url = "rtsp://10.0.1.128:8554" + rowdata.mount;
+                row.insertCell(1).innerHTML = mount_url;
+                var cameratype;
+                if (rowdata.camtype == "0") {
+                    cameratype = "video/x-raw";
+                } else if (rowdata.camtype == "1") {
+                    cameratype = "video/x-h264";
+                }
+                console.log(rowdata.camtype);
+                row.insertCell(2).innerHTML = cameratype;
+            }
         }
     }
+
     function refresh() {
-        console.log("test debug");
         command_send("get_camera_details()", { "onload" : fill_rtsp_table });
     }
+
 </script>
 </html>

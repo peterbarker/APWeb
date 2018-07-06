@@ -762,8 +762,13 @@ static void get_camera_details(struct template_state *tmpl, const char *name, co
     char msg[1000];
     char result[1000];
     get_server_response(GET_DEVICE_PROPS, msg, NULL);
-    process_server_response(msg, result);
-    sock_printf(tmpl->sock, "%s", result);
+    // printf("MSgLen::%lu", strlen(msg));
+    if (strlen(msg)) {
+        process_server_response(msg, result);
+        sock_printf(tmpl->sock, "%s", result);
+    } else {
+        sock_printf(tmpl->sock, "%s", "ERROR");
+    }
 }
 
 /*

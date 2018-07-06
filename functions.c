@@ -760,8 +760,10 @@ static void get_camera_details(struct template_state *tmpl, const char *name, co
 {
     fprintf(stderr, "getting cam details!\n");
     char msg[1000];
+    char result[1000];
     get_server_response(GET_DEVICE_PROPS, msg, NULL);
-    sock_printf(tmpl->sock, "%s", msg);
+    process_server_response(msg, result);
+    sock_printf(tmpl->sock, "%s", result);
 }
 
 /*

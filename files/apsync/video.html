@@ -92,7 +92,7 @@
                     manual_qual_string = "Manual (HW)";
                 }
                 console.log(rowdata.camtype);
-                row.insertCell(2).innerHTML = '<form id="' + form_quality + '"><input type="radio" name="streamtype" value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" name="streamtype" value="manual">' + manual_qual_string + '</form>'
+                row.insertCell(2).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
                 row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
                 
                 var select = document.getElementById(quality_select_box);
@@ -116,7 +116,9 @@
         console.log("Reached this " + button.value);
         var table = document.getElementById("rtsp_table");
         var quality_select_box = document.getElementById("quality_select_box" + button.value);
-        var form_quality = document.getElementById("form_quality" + button.value);
+        var auto_button = document.getElementById("auto" + button.value);
+        var manual_button = document.getElementById("manual" + button.value);
+        console.log("Auto checked - " + auto_button.checked + " Manual Checked - " + manual_button.checked);
         // var rowdata = table.rows[parseInt(button.value)];
     }
 

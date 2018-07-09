@@ -74,6 +74,7 @@
                 var cameratype;
                 var auto_qual_string;
                 var manual_qual_string;
+                var form_quality = "form_quality" + i;
                 var quality_select_box = "quality_select_box"+i;
                 var set_quality_button = "set_quality_button"+i;
 
@@ -91,8 +92,8 @@
                     manual_qual_string = "Manual (HW)";
                 }
                 console.log(rowdata.camtype);
-                row.insertCell(2).innerHTML = '<form><input type="radio" name="streamtype" value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" name="streamtype" value="manual">' + manual_qual_string + '</form>'
-                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + set_quality_button + '">Set</button>';
+                row.insertCell(2).innerHTML = '<form id="' + form_quality + '"><input type="radio" name="streamtype" value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" name="streamtype" value="manual">' + manual_qual_string + '</form>'
+                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
                 
                 var select = document.getElementById(quality_select_box);
                 for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
@@ -109,6 +110,14 @@
                 // }
             }
         }
+    }
+
+    function send_settings(button) {
+        console.log("Reached this " + button.value);
+        var table = document.getElementById("rtsp_table");
+        var quality_select_box = document.getElementById("quality_select_box" + button.value);
+        var form_quality = document.getElementById("form_quality" + button.value);
+        // var rowdata = table.rows[parseInt(button.value)];
     }
 
     function refresh() {

@@ -17,9 +17,20 @@
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 
 <table id="rtsp_table" class="parameters">
-  <tr><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Camera Type</th></tr>
+  <tr><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Camera Type</th><th>Streaming Quality</th><th>Quality Setting</th><th>Apply Setting</th></tr>
 </table>
 <script>
+    var VideoPresetsEnum = {
+        VIDEO_320x240x15: 0, VIDEO_640x480x15: 1, VIDEO_1280x720x15: 2,
+        VIDEO_320x240x30: 3, VIDEO_640x480x30: 4, VIDEO_1280x720x30: 5,
+        VIDEO_320x240x60: 6, VIDEO_640x480x60: 7, VIDEO_1280x720x60:8
+    };
+    var VideoPresetsName = [
+        "320x240 15fps", "640x480 15fps", "1280x720 15fps",
+        "320x240 30fps", "640x480 30fps", "1280x720 30fps",
+        "320x240 60fps", "640x480 60fps", "1280x720 60fps"
+    ];
+
     // 0 - name
     // 1 - mtpt
     // 2 - camtype
@@ -62,13 +73,40 @@
                 var mount_url = "rtsp://10.0.1.128:8554" + rowdata.mount;
                 row.insertCell(1).innerHTML = mount_url;
                 var cameratype;
-                if (rowdata.camtype == "0") {
-                    cameratype = "video/x-raw";
-                } else if (rowdata.camtype == "1") {
-                    cameratype = "video/x-h264";
+                var auto_qual_string;
+                var manual_qual_string;
+                var quality_select_box = quality_select_box+i;
+                if (rowdata.camtype == 0) {
+                    cameratype = "Software Encoding";
+                    auto_qual_string = "Auto (SW)";
+                    manual_qual_string = "Manual (SW)";
+                } else if (rowdata.camtype == 1) {
+                    cameratype = "Mixed Encoding";
+                    auto_qual_string = "Auto (SW)";
+                    manual_qual_string = "Manual (HW)";
+                } else if (rowdata.camtype == 2) {
+                    cameratype = "Hardware Encoding";
+                    auto_qual_string = "Auto (HW)";
+                    manual_qual_string = "Manual (HW)";
                 }
                 console.log(rowdata.camtype);
                 row.insertCell(2).innerHTML = cameratype;
+                row.insertCell(3).innerHTML = '<form><input type="radio" name="streamtype" value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" name="streamtype" value="manual">' + manual_qual_string + '</form>'
+                row.insertCell(4).innerHTML = '<select id=' + quality_select_box + '></select>';
+                
+                var select = document.getElementById(quality_select_box);
+                for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
+                    var test_value = 0;
+                    test_value = 1 << j;
+                    if (test_value & rowdata.frame_property_bitmask) {
+                        console.log("Supports " + VideoPresetsName[j]);
+                        select.options[select.options.length] = new Option(VideoPresetsName[j], j);
+                    }
+                }
+
+                // for(index in myobject) {
+                //     select.options[select.options.length] = new Option(myobject[index], index);
+                // }
             }
         }
     }

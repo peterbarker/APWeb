@@ -118,7 +118,12 @@
         var quality_select_box = document.getElementById("quality_select_box" + button.value);
         var auto_button = document.getElementById("auto" + button.value);
         var manual_button = document.getElementById("manual" + button.value);
-        console.log("Auto checked - " + auto_button.checked + " Manual Checked - " + manual_button.checked);
+        // console.log("Auto checked - " + auto_button.checked + " Manual Checked - " + manual_button.checked);
+        var qual_setting = 0;
+        if (manual_button.checked) {
+            qual_setting = 1 << quality_select_box.value;
+        }
+        console.log("QualValue - " + qual_setting);
         // var rowdata = table.rows[parseInt(button.value)];
     }
 

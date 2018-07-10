@@ -16,7 +16,7 @@
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 
 <table id="rtsp_table" class="parameters">
-  <tr><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Streaming Quality</th><th>Quality Setting</th</tr>
+  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Streaming Quality</th><th>Quality Setting</th</tr>
 </table>
 <script>
     var VideoPresetsEnum = {
@@ -68,9 +68,10 @@
             for (var i=0; i<n; i++) {
                 var row = table.insertRow(table.rows.length);
                 var rowdata = plist[i];
-                row.insertCell(0).innerHTML = rowdata.name;
+                row.insertCell(0).innerHTML = rowdata.dev_mount;
+                row.insertCell(1).innerHTML = rowdata.name;
                 var mount_url = "rtsp://10.0.1.128:8554" + rowdata.mount;
-                row.insertCell(1).innerHTML = mount_url;
+                row.insertCell(2).innerHTML = mount_url;
                 var cameratype;
                 var auto_qual_string;
                 var manual_qual_string;
@@ -92,8 +93,8 @@
                     manual_qual_string = "Manual (HW)";
                 }
                 console.log(rowdata.camtype);
-                row.insertCell(2).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
-                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
+                row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
+                row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
                 
                 var select = document.getElementById(quality_select_box);
                 for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
@@ -124,6 +125,7 @@
             qual_setting = 1 << quality_select_box.value;
         }
         console.log("QualValue - " + qual_setting);
+        // all that we need to send is the device mtpt and its quality
         // var rowdata = table.rows[parseInt(button.value)];
     }
 

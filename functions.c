@@ -762,13 +762,27 @@ static void get_camera_details(struct template_state *tmpl, const char *name, co
     char msg[1000];
     char result[1000];
     get_server_response(GET_DEVICE_PROPS, msg, NULL);
-    // printf("MSgLen::%lu", strlen(msg));
     if (strlen(msg)) {
         process_server_response(msg, result);
         sock_printf(tmpl->sock, "%s", result);
     } else {
         sock_printf(tmpl->sock, "%s", "ERROR");
     }
+}
+
+static void set_device_quality(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    // fprintf(stderr, "getting cam details!\n");
+    for (int i = 0; i < argc; i++) {
+        printf("%d %s\n", i, argv[i]);
+    }
+    if (argc) {
+        if (send_server_message(argv[0]) == 0) {
+            printf("Message sent");
+        }
+    }
+    // char msg[1000];
+    // send_server_message(msg);
 }
 
 /*
@@ -1080,4 +1094,5 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "get_param", "", get_param);
     tmpl->put(tmpl, "get_param_list", "", get_param_list);
     tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
+    tmpl->put(tmpl, "set_device_quality", "", set_device_quality);
 }

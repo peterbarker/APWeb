@@ -22,7 +22,7 @@
     var VideoPresetsEnum = {
         VIDEO_320x240x15: 0, VIDEO_640x480x15: 1, VIDEO_1280x720x15: 2,
         VIDEO_320x240x30: 3, VIDEO_640x480x30: 4, VIDEO_1280x720x30: 5,
-        VIDEO_320x240x60: 6, VIDEO_640x480x60: 7, VIDEO_1280x720x60:8
+        VIDEO_320x240x60: 6, VIDEO_640x480x60: 7, VIDEO_1280x720x60: 8
     };
     var VideoPresetsName = [
         "320x240 15fps", "640x480 15fps", "1280x720 15fps",
@@ -135,10 +135,15 @@
             qual_setting = quality_select_box.value;
         }
         var sdp_string = "SDP$" + device_name + "|" + qual_setting;
+        command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});
         console.log("QualValue - " + sdp_string);
         // console.log()
         // all that we need to send is the device mtpt and its quality
         // var rowdata = table.rows[parseInt(button.value)];
+    }
+
+    function after_sdp() {
+        console.log("SDP string sent");
     }
 
     function refresh() {

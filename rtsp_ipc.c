@@ -8,6 +8,31 @@ const char* RTSP_MESSAGE_HEADER[] = {
     "GDP", "SDP"
 };
 
+int send_server_message(char* msg)
+{
+    struct sockaddr_un addr;
+    int fd;
+
+    if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+        perror("socket error");
+        return -1;
+    }
+    fprintf(stderr, "Socket fd - %d\n", fd);
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strcpy(addr.sun_path, SOCKET_PATH);
+
+    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        fprintf(stderr, "Connect error");
+        return -1;
+    } else {
+        write(fd, msg, strlen(msg));
+        close(fd);
+    }
+    return 0;
+}
+
 void get_server_response(RTSP_MESSAGE_TYPE type, char* reply, char* args)
 {
     struct sockaddr_un addr;

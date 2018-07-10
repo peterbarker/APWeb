@@ -3,7 +3,7 @@
 #define RTSP_IPC_H
 
 typedef enum RTSP_MESSAGE_TYPE  {GET_DEVICE_PROPS, 
-                                SET_DEVICE_PROPS, 
+                                SET_DEVICE_PROPS,
                                 ERROR,
                                 RTSP_MESSAGE_TYPE_COUNT} 
                                 RTSP_MESSAGE_TYPE;

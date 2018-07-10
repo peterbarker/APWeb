@@ -30,6 +30,8 @@
         "320x240 60fps", "640x480 60fps", "1280x720 60fps"
     ];
 
+    var AUTO_PRESET = 1024;
+
     // 0 - name
     // 1 - mtpt
     // 2 - camtype
@@ -79,6 +81,8 @@
                 var quality_select_box = "quality_select_box"+i;
                 var set_quality_button = "set_quality_button"+i;
 
+                var current_quality = rowdata.current_quality;
+
                 if (rowdata.camtype == 0) {
                     cameratype = "Software Encoding";
                     auto_qual_string = "Auto (SW)";
@@ -95,7 +99,14 @@
                 console.log(rowdata.camtype);
                 row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
                 row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
-                
+
+                if (current_quality == AUTO_PRESET) {
+                    document.getElementById('auto'+i).checked = true;
+                } else {
+                    document.getElementById('manual'+i).checked = true;
+                    document.getElementById(quality_select_box).value = current_quality;
+                }
+
                 var select = document.getElementById(quality_select_box);
                 for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
                     var test_value = 0;
@@ -105,10 +116,6 @@
                         select.options[select.options.length] = new Option(VideoPresetsName[j], j);
                     }
                 }
-
-                // for(index in myobject) {
-                //     select.options[select.options.length] = new Option(myobject[index], index);
-                // }
             }
         }
     }
@@ -120,9 +127,9 @@
         var auto_button = document.getElementById("auto" + button.value);
         var manual_button = document.getElementById("manual" + button.value);
         // console.log("Auto checked - " + auto_button.checked + " Manual Checked - " + manual_button.checked);
-        var qual_setting = 0;
+        var qual_setting = AUTO_PRESET;
         if (manual_button.checked) {
-            qual_setting = 1 << quality_select_box.value;
+            qual_setting = quality_select_box.value;
         }
         console.log("QualValue - " + qual_setting);
         // all that we need to send is the device mtpt and its quality

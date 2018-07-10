@@ -4,9 +4,9 @@
 #include <sys/un.h>
 
 const char SOCKET_PATH[80] = "/tmp/rtsp_server";
-const char* RTSP_MESSAGE_HEADER[] = {"GDP",
-                                     "TMP", 
-                                     "RES"};
+const char* RTSP_MESSAGE_HEADER[] = {
+    "GDP", "SDP"
+};
 
 void get_server_response(RTSP_MESSAGE_TYPE type, char* reply, char* args)
 {
@@ -53,7 +53,7 @@ RTSP_MESSAGE_TYPE get_message_type(char* header)
             return i;
         }
     }
-    return ERR;
+    return ERROR;
 }
 
 void process_server_response(char* reply, char* result)

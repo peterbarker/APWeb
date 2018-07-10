@@ -134,7 +134,7 @@
         if (manual_button.checked) {
             qual_setting = quality_select_box.value;
         }
-        var sdp_string = "SDP$" + device_name + "|" + qual_setting;
+        var sdp_string = "SDP$" + device_name + " " + qual_setting;
         command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});
         console.log("QualValue - " + sdp_string);
         // console.log()

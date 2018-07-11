@@ -16,7 +16,7 @@
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 
 <table id="rtsp_table" class="parameters">
-  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Streaming Quality</th><th>Quality Setting</th</tr>
+  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Quality Setting</th</tr>
 </table>
 <script>
     var VideoPresetsEnum = {
@@ -99,11 +99,12 @@
                     manual_qual_string = "Manual (HW)";
                 }
                 console.log(rowdata.camtype);
-                row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
-                row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
+                // row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
+                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
 
                 var select = document.getElementById(quality_select_box);
+                select.options[select.options.length] = new Option("Auto", AUTO_PRESET);
                 for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
                     var test_value = 0;
                     test_value = 1 << j;
@@ -112,13 +113,7 @@
                         select.options[select.options.length] = new Option(VideoPresetsName[j], j);
                     }
                 }
-                if (current_quality == AUTO_PRESET) {
-                    document.getElementById('auto'+i).checked = true;
-                } else {
-                    document.getElementById('manual'+i).checked = true;
-                    console.log("Current qual - " + current_quality);
-                    document.getElementById(quality_select_box).value = current_quality;
-                }
+                document.getElementById(quality_select_box).value = current_quality;
             }
         }
     }
@@ -127,14 +122,10 @@
         console.log("Reached this " + button.value);
         var table = document.getElementById("rtsp_table");
         var quality_select_box = document.getElementById("quality_select_box" + button.value);
-        var auto_button = document.getElementById("auto" + button.value);
-        var manual_button = document.getElementById("manual" + button.value);
         var device_name = document.getElementById("device" + button.value).innerHTML;
         // console.log("Auto checked - " + auto_button.checked + " Manual Checked - " + manual_button.checked);
-        var qual_setting = AUTO_PRESET;
-        if (manual_button.checked) {
-            qual_setting = quality_select_box.value;
-        }
+        var qual_setting = quality_select_box.value;
+
         var sdp_string = "SDP$" + device_name + " " + qual_setting;
         command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});
         console.log("QualValue - " + sdp_string);

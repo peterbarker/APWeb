@@ -71,10 +71,12 @@
                 var row = table.insertRow(table.rows.length);
                 var rowdata = plist[i];
                 var device_cell = row.insertCell(0);
+                var ip = rowdata.ip;
+                var port = rowdata.port;
                 device_cell.innerHTML = rowdata.dev_mount;
                 device_cell.id = "device" + i;
                 row.insertCell(1).innerHTML = rowdata.name;
-                var mount_url = "rtsp://10.0.1.128:8554" + rowdata.mount;
+                var mount_url = "rtsp://" + ip + ":" + port + rowdata.mount;
                 row.insertCell(2).innerHTML = mount_url;
                 var cameratype;
                 var auto_qual_string;

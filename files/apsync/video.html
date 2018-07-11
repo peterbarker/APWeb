@@ -102,12 +102,6 @@
                 row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
                 row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
-                if (current_quality == AUTO_PRESET) {
-                    document.getElementById('auto'+i).checked = true;
-                } else {
-                    document.getElementById('manual'+i).checked = true;
-                    document.getElementById(quality_select_box).value = current_quality;
-                }
 
                 var select = document.getElementById(quality_select_box);
                 for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
@@ -117,6 +111,13 @@
                         console.log("Supports " + VideoPresetsName[j]);
                         select.options[select.options.length] = new Option(VideoPresetsName[j], j);
                     }
+                }
+                if (current_quality == AUTO_PRESET) {
+                    document.getElementById('auto'+i).checked = true;
+                } else {
+                    document.getElementById('manual'+i).checked = true;
+                    console.log("Current qual - " + current_quality);
+                    document.getElementById(quality_select_box).value = current_quality;
                 }
             }
         }

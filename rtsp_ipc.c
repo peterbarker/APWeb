@@ -3,7 +3,9 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-const char SOCKET_PATH[80] = "/tmp/rtsp_server";
+// const char SOCKET_PATH[80] = "/tmp/rtsp_server";
+const char SOCKET_PATH[80] = "../rtsp_server";
+
 const char* RTSP_MESSAGE_HEADER[] = {
     "GDP", "SDP"
 };

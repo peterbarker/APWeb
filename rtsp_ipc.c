@@ -42,6 +42,8 @@ void get_server_response(RTSP_MESSAGE_TYPE type, char* reply, char* args)
 
     if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         perror("socket error");
+        reply[0] = '\0';
+        return;
     }
     fprintf(stderr, "Socket fd - %d\n", fd);
 
@@ -69,8 +71,8 @@ void get_server_response(RTSP_MESSAGE_TYPE type, char* reply, char* args)
         if (bytes_read != -1) {
             strcpy(reply, read_buffer);
         }
-        close(fd);
     }
+    close(fd);
 }
 
 RTSP_MESSAGE_TYPE get_message_type(char* header)

@@ -84,6 +84,7 @@
                 var form_quality = "form_quality" + i;
                 var quality_select_box = "quality_select_box"+i;
                 var set_quality_button = "set_quality_button"+i;
+                var record_video_checkbox = "record"+i;
 
                 var current_quality = rowdata.current_quality;
 
@@ -102,7 +103,7 @@
                 }
                 console.log(rowdata.camtype);
                 // row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
-                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
+                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>'+ '<input type="checkbox" id=' + record_video_checkbox + '>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
 
                 var select = document.getElementById(quality_select_box);
@@ -124,11 +125,21 @@
         console.log("Reached this " + button.value);
         var table = document.getElementById("rtsp_table");
         var quality_select_box = document.getElementById("quality_select_box" + button.value);
+        var record_video_checkbox = document.getElementById("record"+button.value);
+
         var device_name = document.getElementById("device" + button.value).innerHTML;
         // console.log("Auto checked - " + auto_button.checked + " Manual Checked - " + manual_button.checked);
         var qual_setting = quality_select_box.value;
 
-        var sdp_string = "SDP$" + device_name + " " + qual_setting;
+        var record_val;
+
+        if (record_video_checkbox.checked == true) {
+            record_val = 1;
+        } else {
+            record_val = 0;
+        }
+
+        var sdp_string = "SDP$" + device_name + " " + qual_setting + " " + record_val;
         command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});
         console.log("QualValue - " + sdp_string);
         // console.log()

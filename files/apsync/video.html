@@ -16,7 +16,7 @@
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 
 <table id="rtsp_table" class="parameters">
-  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Quality Setting</th</tr>
+  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Quality</th><th>Record</th><th>Apply</th></tr>
 </table>
 <script>
     var VideoPresetsEnum = {
@@ -103,8 +103,9 @@
                 }
                 console.log(rowdata.camtype);
                 // row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
-                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>'+ '<input type="checkbox" id=' + record_video_checkbox + '>' + '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
-
+                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>';
+                row.insertCell(4).innerHTML = '<input type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
+                row.insertCell(5).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
                 var select = document.getElementById(quality_select_box);
                 select.options[select.options.length] = new Option("Auto", AUTO_PRESET);

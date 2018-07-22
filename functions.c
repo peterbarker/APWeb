@@ -793,13 +793,36 @@ static void set_device_quality(struct template_state *tmpl, const char *name, co
     // send_server_message(msg);
 }
 
+static pid_t stream_server_pid = -1;
+
 static void start_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
-    char cmd[100];
-    cmd[0] = '\0';
-    sprintf(cmd, "stream_server %s", argv[0]);
-    fprintf(stderr, "%s\n", cmd);
-    system(cmd);
+    // char cmd[100];
+    // cmd[0] = '\0';
+    // sprintf(cmd, "stream_server %s", argv[0]);
+    // fprintf(stderr, "%s\n", cmd);
+    if (stream_server_pid == -1) {
+        stream_server_pid = fork();
+        if (stream_server_pid < 0) {
+            fprintf(stderr, "Forked failed");
+        } else if (stream_server_pid == 0) {
+            if (execlp("stream_server", "stream_server", argv[0], NULL)==-1) {
+                fprintf(stderr, "Error in launching the stream server");
+            }
+        }
+    } else {
+        fprintf(stderr, "Stream server running %d", stream_server_pid);
+    }
+}
+
+static void stop_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    if(!kill(stream_server_pid, SIGINT)) {
+        stream_server_pid = -1;
+        fprintf(stderr, "Stream server successfully killed");
+    } else {
+        fprintf(stderr, "Could not kill the stream server");
+    }
 }
 
 /*
@@ -1113,5 +1136,6 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
     tmpl->put(tmpl, "set_device_quality", "", set_device_quality);
     tmpl->put(tmpl, "start_rtsp_server", "", start_rtsp_server);
+    tmpl->put(tmpl, "stop_rtsp_server", "", stop_rtsp_server);
     tmpl->put(tmpl, "get_interfaces", "", get_interfaces);
 }

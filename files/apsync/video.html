@@ -13,13 +13,13 @@
 <p><a href="/index.html"><img src="/images/main_logo.png" alt="ArduPilot"></a></p>
 <h1>Video Streaming</h1>
 <div id="serverStoppedDiv">
-<p>Network Interface: <select id="if_select_box"></select><button type="submit" value="set_if" onclick="start_server();">Start RTSP Server</button></p>
+<p>Network Interface: <select id="if_select_box"></select><button type="submit" style="padding:1px" value="set_if" onclick="start_server();">Start RTSP Server</button></p>
 </div>
 <div id="serverStartedDiv">
-<p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
 <table id="rtsp_table" class="parameters">
   <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Quality</th><th>Record</th><th>Apply</th></tr>
 </table>
+<p><input type="submit" name="action" value="Stop RTSP Server" onclick="stop_server();"></p>
 </div>
 <script>
     var VideoPresetsEnum = {
@@ -51,7 +51,26 @@
         var select = document.getElementById("if_select_box");
         console.log(select.value);
         var interface = select.value;
-        command_send("start_rtsp_server(" + interface + ")", {"onload" : refresh});
+        command_send("start_rtsp_server(" + interface + ")", {"onload" : late_refresh});
+    }
+
+    function stop_server() {
+        command_send("stop_rtsp_server()", {"onload" : refresh});
+    }
+
+    function sleep(milliseconds) {
+        var start = new Date().getTime();
+        for (var i = 0; i < 1e7; i++) {
+            if ((new Date().getTime() - start) > milliseconds){
+                break;
+            }
+        }
+    }
+
+    function late_refresh() {
+        // The stream server needs some time to wake up
+        sleep(500);
+        refresh();
     }
 
     function fill_interface_list(interface_list) {

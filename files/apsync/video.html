@@ -40,8 +40,22 @@
     // 0 - name
     // 1 - mtpt
     // 2 - camtype
+    function removeOptions(selectbox) {
+        var i;
+        for(i = selectbox.options.length - 1 ; i >= 0 ; i--) {
+            selectbox.remove(i);
+        }
+    }
+
     function fill_interface_list(interface_list) {
-        
+        console.log(interface_list);
+        var select = document.getElementById("if_select_box");
+        removeOptions(select);
+        var iflist = JSON.parse(interface_list);
+        var interfaces = iflist["interfaces"];
+        for (var i = 0; i < interfaces.length; i++) {
+            select.options[select.options.length] = new Option(interfaces[i]);
+        }
     }
 
     function fill_rtsp_table(cam_data) {

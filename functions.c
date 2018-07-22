@@ -773,6 +773,9 @@ static void get_camera_details(struct template_state *tmpl, const char *name, co
 static void get_interfaces(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     fprintf(stderr, "getting IFs!\n");
+    char interfaces_list[1000];
+    get_interfaces_list(interfaces_list);
+    sock_printf(tmpl->sock, "%s", interfaces_list);
 }
 
 static void set_device_quality(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)

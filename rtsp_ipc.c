@@ -115,20 +115,31 @@ void process_server_response(char* reply, char* result)
 void get_interfaces_list(char* interface_list)
 {
     struct ifaddrs *ifaddr, *ifa;
-    int family, s;
+    // int s;
     char host[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) == -1) {
         perror("getifaddrs");
         exit(EXIT_FAILURE);
     }
-
+    interface_list[0] = '\0';
+    sprintf(interface_list, "{\"interfaces\": [");
+    int i = 0;
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == NULL) {
             continue;
         }
-        s=getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in), host, NI_MAXHOST,
+        getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in), host, NI_MAXHOST,
                       NULL, 0, NI_NUMERICHOST);
+        if (ifa->ifa_addr->sa_family==AF_INET) {
+            fprintf(stderr, "%s\n", ifa->ifa_name);
+            if (i == 0) {
+                sprintf(interface_list, "%s\"%s\"", interface_list, ifa->ifa_name);    
+            } else {
+                sprintf(interface_list, "%s,\"%s\"", interface_list, ifa->ifa_name);
+            }
+            i++;
+        }
         // if ((strcmp(ifa->ifa_name, interface.c_str()) == 0) && (ifa->ifa_addr->sa_family==AF_INET)) {
         //     if (s != 0) {
         //         printf("getnameinfo() failed: %s\n", gai_strerror(s));
@@ -139,6 +150,9 @@ void get_interfaces_list(char* interface_list)
         //     return string(host);
         // }
     }
+    sprintf(interface_list, "%s]}", interface_list);
+    fprintf(stderr, "IF list - %s\n", interface_list);
+
     freeifaddrs(ifaddr);
     // return string("127.0.0.1");
 }

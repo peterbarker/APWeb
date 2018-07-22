@@ -817,11 +817,13 @@ static void start_rtsp_server(struct template_state *tmpl, const char *name, con
 
 static void stop_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
-    if(!kill(stream_server_pid, SIGTERM)) {
-        stream_server_pid = -1;
-        fprintf(stderr, "Stream server successfully killed");
-    } else {
-        fprintf(stderr, "Could not kill the stream server");
+    if (stream_server_pid != -1) {
+        if(!kill(stream_server_pid, SIGTERM)) {
+            stream_server_pid = -1;
+            fprintf(stderr, "Stream server successfully killed");
+        } else {
+            fprintf(stderr, "Could not kill the stream server");
+        }
     }
 }
 

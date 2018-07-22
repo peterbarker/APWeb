@@ -11,6 +11,7 @@ typedef enum RTSP_MESSAGE_TYPE  {GET_DEVICE_PROPS,
 void get_server_response(RTSP_MESSAGE_TYPE type, char* reply, char* args);
 int send_server_message(char* msg);
 void process_server_response(char* reply, char* result);
+void get_interfaces_list(char* interface_list);
 RTSP_MESSAGE_TYPE get_message_type(char* header);
 
 #endif

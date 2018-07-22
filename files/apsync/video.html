@@ -12,12 +12,15 @@
 
 <p><a href="/index.html"><img src="/images/main_logo.png" alt="ArduPilot"></a></p>
 <h1>Video Streaming</h1>
-
+<div id="serverStoppedDiv">
+<p>Network Interface: <select id="if_select_box"></select><button type="submit" value="set_if" onclick="">Start RTSP Server</button></p>
+</div>
+<div id="serverStartedDiv">
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
-
 <table id="rtsp_table" class="parameters">
   <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th>Quality</th><th>Record</th><th>Apply</th></tr>
 </table>
+</div>
 <script>
     var VideoPresetsEnum = {
         VIDEO_320x240x15: 0, VIDEO_640x480x15: 1, VIDEO_1280x720x15: 2,
@@ -32,9 +35,15 @@
 
     var AUTO_PRESET = 1024;
 
+    window.onload = refresh;
+
     // 0 - name
     // 1 - mtpt
     // 2 - camtype
+    function fill_interface_list(interface_list) {
+        
+    }
+
     function fill_rtsp_table(cam_data) {
         console.log(cam_data);
         var table = document.getElementById("rtsp_table");
@@ -47,8 +56,13 @@
 
         if (cam_data == "ERROR\n") {
             console.log("error str");
-            alert("Cannot connect to the local RTSP Stream server");    
+            document.getElementById("serverStartedDiv").style.display = 'none';
+            document.getElementById("serverStoppedDiv").style.display = 'block';
+            command_send("get_interfaces()", { "onload" : fill_interface_list });
+            // alert("Cannot connect to the local RTSP Stream server");    
         } else {
+            document.getElementById("serverStartedDiv").style.display = 'block';
+            document.getElementById("serverStoppedDiv").style.display = 'none';
             var plist;
             try {
                 plist = JSON.parse(cam_data);
@@ -93,7 +107,7 @@
                     auto_qual_string = "Auto (SW)";
                     manual_qual_string = "Manual (SW)";
                 } else if (rowdata.camtype == 1) {
-                    cameratype = "Mixed Encoding";
+                    cameratype = "UVC Camera";
                     auto_qual_string = "Auto (SW)";
                     manual_qual_string = "Manual (HW)";
                 } else if (rowdata.camtype == 2) {
@@ -152,7 +166,7 @@
         console.log("SDP string sent");
     }
 
-    function refresh() {
+    function refresh() {serverStoppedDiv
         command_send("get_camera_details()", { "onload" : fill_rtsp_table });
     }
 

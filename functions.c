@@ -770,6 +770,11 @@ static void get_camera_details(struct template_state *tmpl, const char *name, co
     }
 }
 
+static void get_interfaces(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    fprintf(stderr, "getting IFs!\n");
+}
+
 static void set_device_quality(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     // fprintf(stderr, "getting cam details!\n");
@@ -1095,4 +1100,5 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "get_param_list", "", get_param_list);
     tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
     tmpl->put(tmpl, "set_device_quality", "", set_device_quality);
+    tmpl->put(tmpl, "get_interfaces", "", get_interfaces);
 }

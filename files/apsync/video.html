@@ -13,7 +13,7 @@
 <p><a href="/index.html"><img src="/images/main_logo.png" alt="ArduPilot"></a></p>
 <h1>Video Streaming</h1>
 <div id="serverStoppedDiv">
-<p>Network Interface: <select id="if_select_box"></select><button type="submit" value="set_if" onclick="">Start RTSP Server</button></p>
+<p>Network Interface: <select id="if_select_box"></select><button type="submit" value="set_if" onclick="start_server();">Start RTSP Server</button></p>
 </div>
 <div id="serverStartedDiv">
 <p><input type="submit" name="action" value="Refresh Camera List" onclick="refresh();"></p>
@@ -47,6 +47,13 @@
         }
     }
 
+    function start_server() {
+        var select = document.getElementById("if_select_box");
+        console.log(select.value);
+        var interface = select.value;
+        command_send("start_rtsp_server(" + interface + ")", {"onload" : refresh});
+    }
+
     function fill_interface_list(interface_list) {
         console.log(interface_list);
         var select = document.getElementById("if_select_box");
@@ -54,7 +61,7 @@
         var iflist = JSON.parse(interface_list);
         var interfaces = iflist["interfaces"];
         for (var i = 0; i < interfaces.length; i++) {
-            select.options[select.options.length] = new Option(interfaces[i]);
+            select.options[select.options.length] = new Option(interfaces[i], interfaces[i]);
         }
     }
 
@@ -180,7 +187,7 @@
         console.log("SDP string sent");
     }
 
-    function refresh() {serverStoppedDiv
+    function refresh() {
         command_send("get_camera_details()", { "onload" : fill_rtsp_table });
     }
 

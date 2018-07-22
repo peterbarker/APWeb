@@ -9,8 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// const char SOCKET_PATH[80] = "/tmp/rtsp_server";
-const char SOCKET_PATH[80] = "../rtsp_server";
+const char SOCKET_PATH[80] = "/tmp/rtsp_server.sock";
+// const char SOCKET_PATH[80] = "../rtsp_server";
 
 const char* RTSP_MESSAGE_HEADER[] = {
     "GDP", "SDP"

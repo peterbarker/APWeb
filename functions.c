@@ -793,6 +793,15 @@ static void set_device_quality(struct template_state *tmpl, const char *name, co
     // send_server_message(msg);
 }
 
+static void start_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    char cmd[100];
+    cmd[0] = '\0';
+    sprintf(cmd, "stream_server %s", argv[0]);
+    fprintf(stderr, "%s\n", cmd);
+    system(cmd);
+}
+
 /*
   get parameter list
  */
@@ -1103,5 +1112,6 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "get_param_list", "", get_param_list);
     tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
     tmpl->put(tmpl, "set_device_quality", "", set_device_quality);
+    tmpl->put(tmpl, "start_rtsp_server", "", start_rtsp_server);
     tmpl->put(tmpl, "get_interfaces", "", get_interfaces);
 }

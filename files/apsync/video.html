@@ -157,7 +157,11 @@
                 }
                 console.log(rowdata.camtype);
                 // row.insertCell(3).innerHTML = '<form id="' + form_quality + '"><input type="radio" id=auto' + i + ' name=streamtype' + i + ' value="auto" checked="checked">'+ auto_qual_string + '<input type="radio" id=manual' + i + ' name=streamtype' + i + ' value="manual">' + manual_qual_string + '</form>'
-                row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>';
+                if (rowdata.camtype != 1) {
+                    row.insertCell(3).innerHTML = '<select id="' + quality_select_box + '"></select>';
+                } else {
+                    row.insertCell(3).innerHTML = '<select disabled id="' + quality_select_box + '"></select>';
+                }
                 row.insertCell(4).innerHTML = '<input type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
                 row.insertCell(5).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 

@@ -69,7 +69,12 @@
 
     function late_refresh() {
         // The stream server needs some time to wake up
-        sleep(500);
+        timed_refresh(500);
+    }
+
+    function timed_refresh(millis) {
+        // The stream server needs some time to wake up
+        sleep(millis);
         refresh();
     }
 
@@ -141,6 +146,7 @@
                 var record_video_checkbox = "record"+i;
 
                 var current_quality = rowdata.current_quality;
+                var curr_recording = rowdata.recording;
 
                 if (rowdata.camtype == 0) {
                     cameratype = "Software Encoding";
@@ -176,6 +182,7 @@
                     }
                 }
                 document.getElementById(quality_select_box).value = current_quality;
+                document.getElementById(record_video_checkbox).checked = curr_recording;
             }
         }
     }
@@ -201,6 +208,7 @@
         var sdp_string = "SDP$" + device_name + " " + qual_setting + " " + record_val;
         command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});
         console.log("QualValue - " + sdp_string);
+        timed_refresh(100);
         // console.log()
         // all that we need to send is the device mtpt and its quality
         // var rowdata = table.rows[parseInt(button.value)];

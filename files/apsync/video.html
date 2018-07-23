@@ -73,7 +73,6 @@
     }
 
     function timed_refresh(millis) {
-        // The stream server needs some time to wake up
         sleep(millis);
         refresh();
     }
@@ -104,7 +103,6 @@
             document.getElementById("serverStartedDiv").style.display = 'none';
             document.getElementById("serverStoppedDiv").style.display = 'block';
             command_send("get_interfaces()", { "onload" : fill_interface_list });
-            // alert("Cannot connect to the local RTSP Stream server");    
         } else {
             document.getElementById("serverStartedDiv").style.display = 'block';
             document.getElementById("serverStoppedDiv").style.display = 'none';

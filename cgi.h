@@ -41,10 +41,12 @@ struct cgi_state {
                        const char *err, const char *header, const char *info);
     void (*download)(struct cgi_state *cgi, const char *path);
     void (*put)(struct cgi_state *cgi, const char *name, const char *value);
+    bool (*check_origin)(const char *origin);
 
     /* data */
     struct cgi_var *variables;
     struct template_state *tmpl;
+    const char *origin;
     char *content_type;
     unsigned long content_length;
     int request_post;
@@ -65,6 +67,7 @@ enum CGI_MIME_TYPE {MIME_TYPE_IMAGE_GIF,
                     MIME_TYPE_TEXT_PLAIN,
                     MIME_TYPE_TEXT_HTML,
                     MIME_TYPE_VIDEO_MP4,
+                    MIME_TYPE_VIDEO_AVI,
                     MIME_TYPE_JAVASCRIPT,
                     MIME_TYPE_JSON,
                     MIME_TYPE_CSS,

@@ -8,8 +8,28 @@
 #include "mavlink_json.h"
 #include "mavlink_core.h"
 #include "cgi.h"
+#include "rtsp_ipc.h"
+
+#ifdef _POSIX_VERSION
+#include "posix/functions.h"
+#endif
+#ifdef __linux__
+#include "linux/functions.h"
+#endif
 
 #ifdef SYSTEM_FREERTOS
+#include "../mavlink_wifi.h"
+#include "video_main.h"
+#include <libmid_fwupgrade/fwupgrade.h>
+#include <libmid_nvram/snx_mid_nvram.h>
+#include <wifi/wifi_api.h>
+#include "../tx_upload.h"
+#include "../ublox.h"
+#include "files/version.h"
+#include <uart/uart.h>
+#include <libmid_isp/snx_mid_isp.h>
+#endif
+
 /*
   get uptime in seconds
  */
@@ -21,6 +41,7 @@ static void uptime(struct template_state *tmpl, const char *name, const char *va
 /*
   get FC mavlink packet count
  */
+unsigned mavlink_fc_pkt_count();
 static void fc_mavlink_count(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     sock_printf(tmpl->sock, "%u", mavlink_fc_pkt_count());
@@ -29,9 +50,16 @@ static void fc_mavlink_count(struct template_state *tmpl, const char *name, cons
 /*
   get FC mavlink baudrate
  */
+int uart2_get_baudrate();
+
 static void fc_mavlink_baudrate(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
-    sock_printf(tmpl->sock, "%u", uart2_get_baudrate());
+    int baudrate = uart2_get_baudrate();
+    if (baudrate == -1) {
+        sock_printf(tmpl->sock, "\"Not in use\"");
+    } else {
+        sock_printf(tmpl->sock, "%u", baudrate);
+    }
 }
 
 /*
@@ -42,7 +70,6 @@ static void mem_free(struct template_state *tmpl, const char *name, const char *
     int mem_type = argc>0?atoi(argv[0]):1;
     sock_printf(tmpl->sock, "%u", xPortGetFreeHeapSize(mem_type));
 }
-#endif
 
 /*
   get upload progress
@@ -320,7 +347,11 @@ static void mavlink_message_send(struct template_state *tmpl, const char *name, 
 static void reboot_companion(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     console_printf("rebooting ...\n");
+#ifdef SYSTEM_FREERTOS
     reboot();    
+#else
+    __reboot();    
+#endif
 }
 
 extern void snx_nvram_bootup_upgrade(void);
@@ -354,18 +385,16 @@ static void format_storage(struct template_state *tmpl, const char *name, const 
 #endif
 }
 
-
-#ifdef SYSTEM_FREERTOS
 /*
   validate auth settings for wifi
   return error-string on error. Return NULL if OK
  */
-static const char *validate_ssid_password(const char *ssid,
+const char *validate_ssid_password(const char *ssid,
                                           const char *password,
-                                          enc_auth_t auth_mode,
+                                          apweb_enc_auth_t auth_mode,
                                           int channel)
 {
-    if (channel < 1 || channel > 14) {
+    if (channel < 0 || channel > 14) {
         return "Invalid WiFi channel";
     }
     switch (auth_mode) {
@@ -390,6 +419,8 @@ static const char *validate_ssid_password(const char *ssid,
     }
     return "Invalid auth mode";
 }
+
+#ifdef SYSTEM_FREERTOS
 
 /*
   set ssid and password
@@ -421,8 +452,8 @@ static void set_ssid(struct template_state *tmpl, const char *name, const char *
 
     snx_nvram_integer_set("WIFI_DEV", "AP_AUTH_MODE", auth_mode);
     snx_nvram_integer_set("WIFI_DEV", "AP_CHANNEL_INFO", ap_channel);
-    snx_nvram_string_set("WIFI_DEV", "AP_SSID_INFO", ssid);
-    snx_nvram_string_set("WIFI_DEV", "AP_KEY_INFO", password);
+    snx_nvram_string_set("WIFI_DEV", "AP_SSID_INFO", __DECONST(char *,ssid));
+    snx_nvram_string_set("WIFI_DEV", "AP_KEY_INFO", __DECONST(char *,password));
 
     sock_printf(tmpl->sock, "Set SSID and password");
 }
@@ -430,7 +461,7 @@ static void set_ssid(struct template_state *tmpl, const char *name, const char *
 /*
   get ssid and password
  */
-static void get_ssid(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+static void get_ssid_info(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
     char ssid[50]="", pass[50]="";
     int mode=0, channel=0;
@@ -445,6 +476,18 @@ static void get_ssid(struct template_state *tmpl, const char *name, const char *
 }
 
 /*
+  get ssid
+ */
+static void get_ssid(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    char ssid[50]="";
+    
+    snx_nvram_string_get("WIFI_DEV", "AP_SSID_INFO", ssid);
+
+    sock_printf(tmpl->sock, "%s", ssid);
+}
+
+/*
   handle sonix fw update
  */
 static void handle_sonix_upgrade(struct template_state *tmpl, const char *filename, const char *filedata, uint32_t size)
@@ -452,12 +495,15 @@ static void handle_sonix_upgrade(struct template_state *tmpl, const char *filena
     set_upload_message("checking firmware MD5");
     set_upload_progress(1);
     if (check_fw_md5((const unsigned char *)filedata, size)) {
-        set_upload_message("Good MD5 on image - upgrading. Please reconnect WiFi in 30 seconds");
+        set_upload_message("Good MD5 on image");
+        mdelay(1000);
         set_upload_progress(100);
         // give time for UI to update
+        set_upload_message("starting upgrade");
         mdelay(3000);
         fw_upgrade(__DECONST(char*,filedata), size);
-        set_upload_message("rebooting");
+        set_upload_message("success - rebooting");
+        mdelay(3000);
     } else {
         set_upload_message("Bad MD5 on image");
     }
@@ -508,6 +554,7 @@ static void handle_file_upload(struct template_state *tmpl, const char *filename
         } else {
             result = "file write failed";
         }
+        f_sync(&fh);
         f_close(&fh);
     } else {
         result = "failed to open file";
@@ -709,11 +756,84 @@ static void get_param(struct template_state *tmpl, const char *name, const char 
     }
 }
 
+static void get_camera_details(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    fprintf(stderr, "getting cam details!\n");
+    char msg[1000];
+    char result[1000];
+    get_server_response(GET_DEVICE_PROPS, msg, NULL);
+    if (strlen(msg)) {
+        process_server_response(msg, result);
+        sock_printf(tmpl->sock, "%s", result);
+    } else {
+        sock_printf(tmpl->sock, "%s", "ERROR");
+    }
+}
+
+static void get_interfaces(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    fprintf(stderr, "getting IFs!\n");
+    char interfaces_list[1000];
+    get_interfaces_list(interfaces_list);
+    sock_printf(tmpl->sock, "%s", interfaces_list);
+}
+
+static void set_device_quality(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    // fprintf(stderr, "getting cam details!\n");
+    for (int i = 0; i < argc; i++) {
+        printf("%d %s\n", i, argv[i]);
+    }
+    if (argc) {
+        if (send_server_message(argv[0]) == 0) {
+            printf("Message sent");
+        }
+    }
+    // char msg[1000];
+    // send_server_message(msg);
+}
+
+static pid_t stream_server_pid = -1;
+
+static void start_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    // char cmd[100];
+    // cmd[0] = '\0';
+    // sprintf(cmd, "stream_server %s", argv[0]);
+    // fprintf(stderr, "%s\n", cmd);
+    if (stream_server_pid == -1) {
+        stream_server_pid = fork();
+        if (stream_server_pid < 0) {
+            fprintf(stderr, "Forked failed");
+        } else if (stream_server_pid == 0) {
+            if (execlp("stream_server", "stream_server", argv[0], NULL)==-1) {
+                fprintf(stderr, "Error in launching the stream server");
+            }
+        }
+    } else {
+        fprintf(stderr, "Stream server running %d", stream_server_pid);
+    }
+}
+
+static void stop_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    if (stream_server_pid != -1) {
+        if(!kill(stream_server_pid, SIGTERM)) {
+            stream_server_pid = -1;
+            fprintf(stderr, "Stream server successfully killed");
+        } else {
+            fprintf(stderr, "Could not kill the stream server");
+        }
+    }
+}
+
 /*
   get parameter list
  */
 static void get_param_list(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
 {
+    fprintf(stderr, "getting cam details!");
+
     bool first = true;
     uint16_t i;
     sock_printf(tmpl->sock, "[ ");
@@ -842,21 +962,27 @@ static void nvram_pack_values(struct template_state *tmpl, const char *name, con
 
     while (cfg_cnt--) {
         nvram_cfg_name_data_info_t *cfg = &cfg_name_info[cfg_cnt];
+        unsigned int data_len = 0;
         cfg_name = cfg->name;
+        if (snx_nvram_get_data_len(pack_name, cfg_name, &data_len) != NVRAM_SUCCESS || data_len == 0) {
+            continue;
+        }
         if (!first) {
             sock_printf(tmpl->sock, ", ");
         }
         first = false;
-        sock_printf(tmpl->sock, "{ \"name\" : \"%s\", \"size\" : %u, ",
-                    cfg_name, cfg->data_info.data_len);
+        sock_printf(tmpl->sock, "{ \"name\" : \"%s\", \"size\" : %u, ", cfg_name, data_len);
         void *cfg_data = NULL;
 
-        cfg_data = talloc_zero_size(cfg_name_info, cfg->data_info.data_len);
+        cfg_data = talloc_zero_size(cfg_name_info, data_len);
         if (cfg_data == NULL) {
             continue;
         }
         cfg->data_info.data = cfg_data;
         snx_nvram_get_immediately(pack_name, cfg_name, &cfg->data_info);
+        if (cfg->data_info.data_type == NVRAM_DT_BIN_RAW) {
+            snx_nvram_binary_get(pack_name, cfg_name, cfg_data);
+        }
 
         switch (cfg->data_info.data_type) {
         case NVRAM_DT_STRING:
@@ -887,6 +1013,7 @@ static void nvram_pack_values(struct template_state *tmpl, const char *name, con
             sock_printf(tmpl->sock, "\"type\" : \"unknown\" }");
             break;
         }
+        talloc_free(cfg_data);
         cfg_data = NULL;
     }
 
@@ -921,22 +1048,30 @@ static void nvram_set_value(struct template_state *tmpl, const char *name, const
     }
     uint32_t i;
     int dtype = -1;
+    nvram_cfg_name_data_info_t *cfg = NULL;
+    
     for (i=0; i<cfg_cnt; i++) {
-        nvram_cfg_name_data_info_t *cfg = &cfg_name_info[i];
-        void *cfg_data = NULL;
-
-        cfg_data = talloc_zero_size(cfg_name_info, cfg->data_info.data_len);
-        if (cfg_data == NULL) {
-            continue;
-        }        
-        cfg->data_info.data = cfg_data;
-        snx_nvram_get_immediately(pack_name, cfg_name, &cfg->data_info);
-        dtype = cfg->data_info.data_type; 
+        cfg = &cfg_name_info[i];
+        if (strcmp(cfg_name, cfg->name) == 0) {
+            break;
+        }
     }
 
+    if (i == cfg_cnt) {
+        goto failed;
+    }
+
+    void *cfg_data = talloc_zero_size(cfg_name_info, cfg->data_info.data_len);
+    if (cfg_data == NULL) {
+        goto failed;
+    }
+    cfg->data_info.data = cfg_data;
+    snx_nvram_get_immediately(pack_name, cfg_name, &cfg->data_info);
+    dtype = cfg->data_info.data_type; 
+    
     switch (dtype) {
     case NVRAM_DT_STRING:
-        rc = snx_nvram_string_set(pack_name, cfg_name, svalue);
+        rc = snx_nvram_string_set(pack_name, cfg_name, __DECONST(char *,svalue));
         break;
     case NVRAM_DT_INT:
         rc = snx_nvram_integer_set(pack_name, cfg_name, atoi(svalue));
@@ -957,12 +1092,10 @@ failed:
 void functions_init(struct template_state *tmpl)
 {
 #ifdef SYSTEM_FREERTOS
-    tmpl->put(tmpl, "uptime", "", uptime);
-    tmpl->put(tmpl, "mem_free", "", mem_free);
     tmpl->put(tmpl, "snapshot", "", snapshot);
     tmpl->put(tmpl, "mjpgvideo", "", mjpg_video);
     tmpl->put(tmpl, "take_picture", "", take_picture);
-    tmpl->put(tmpl, "get_ssid", "", get_ssid);
+    tmpl->put(tmpl, "get_ssid_info", "", get_ssid_info);
     tmpl->put(tmpl, "set_ssid", "", set_ssid);
     tmpl->put(tmpl, "sonix_version", "", sonix_version);
     tmpl->put(tmpl, "file_upload", "", file_upload);
@@ -972,14 +1105,23 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "file_listdir", "", file_listdir);
     tmpl->put(tmpl, "disk_info", "", disk_info);
     tmpl->put(tmpl, "set_time_utc", "", set_time_utc);
-    tmpl->put(tmpl, "fc_mavlink_count", "", fc_mavlink_count);
-    tmpl->put(tmpl, "fc_mavlink_baudrate", "", fc_mavlink_baudrate);
     tmpl->put(tmpl, "mga_status", "", mga_status);
     tmpl->put(tmpl, "mga_upload", "", mga_upload);
     tmpl->put(tmpl, "nvram_pack_list", "", nvram_pack_list);
     tmpl->put(tmpl, "nvram_pack_values", "", nvram_pack_values);
     tmpl->put(tmpl, "nvram_set_value", "", nvram_set_value);
+    tmpl->put(tmpl, "get_ssid", "", get_ssid);
 #endif // SYSTEM_FREERTOS
+#ifdef _POSIX_VERSION
+    posix_functions_init(tmpl);
+#endif
+#ifdef __linux__
+    linux_functions_init(tmpl);
+#endif
+    tmpl->put(tmpl, "uptime", "", uptime);
+    tmpl->put(tmpl, "mem_free", "", mem_free);
+    tmpl->put(tmpl, "fc_mavlink_count", "", fc_mavlink_count);
+    tmpl->put(tmpl, "fc_mavlink_baudrate", "", fc_mavlink_baudrate);
     tmpl->put(tmpl, "format_storage", "", format_storage);
     tmpl->put(tmpl, "factory_reset", "", factory_reset);
     tmpl->put(tmpl, "reboot_companion", "", reboot_companion);
@@ -993,5 +1135,9 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "process_content", "", process_content);
     tmpl->put(tmpl, "get_param", "", get_param);
     tmpl->put(tmpl, "get_param_list", "", get_param_list);
+    tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
+    tmpl->put(tmpl, "set_device_quality", "", set_device_quality);
+    tmpl->put(tmpl, "start_rtsp_server", "", start_rtsp_server);
+    tmpl->put(tmpl, "stop_rtsp_server", "", stop_rtsp_server);
+    tmpl->put(tmpl, "get_interfaces", "", get_interfaces);
 }
-

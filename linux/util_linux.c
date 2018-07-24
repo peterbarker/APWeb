@@ -20,32 +20,20 @@ const char *get_upload_message(void)
     return "";
 }
 
-static struct {
-    bool initialised;
-    struct timeval tv;
-} system_time;
-
 // get number of seconds since boot
 long long get_sys_seconds_boot()
 {
-    if (!system_time.initialised) {
-        gettimeofday(&system_time.tv,NULL);
-    }
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return tv.tv_sec - system_time.tv.tv_sec;
+    return get_time_boot_ms()/1000;
 }
 
 // get number of milliseconds since boot
 uint32_t get_time_boot_ms()
 {
-    if (!system_time.initialised) {
-        gettimeofday(&system_time.tv,NULL);
-        system_time.initialised = true;
-    }
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return (tv.tv_sec - system_time.tv.tv_sec) * 1000U + (tv.tv_usec - system_time.tv.tv_usec) / 1000U;
+    struct timespec elapsed_from_boot;
+
+    clock_gettime(CLOCK_BOOTTIME, &elapsed_from_boot);
+
+    return elapsed_from_boot.tv_sec*1000 + elapsed_from_boot.tv_nsec/1000000;
 }
 
 void mdelay(uint32_t ms)
@@ -65,9 +53,16 @@ bool toggle_recording(void)
     return false;
 }
 
-void reboot(void)
+void __reboot(void)
 {
-    printf("reboot not implemented\n");
+    #if __APPLE__
+        printf("reboot OSX implemented, but disabled for now.\n");
+        //reboot(0);
+    #elif __linux__
+        system("/sbin/shutdown -t now -r");
+    #else
+        printf("reboot not implemented\n");
+    #endif
 }
 
 
@@ -91,4 +86,11 @@ void *print_printf(void *ctx, const char *fmt, ...)
     void *ret = print_vprintf(ctx, fmt, ap);
     va_end(ap);
     return ret;
+}
+
+
+
+unsigned xPortGetFreeHeapSize()
+{
+    return 0;
 }

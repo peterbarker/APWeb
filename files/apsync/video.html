@@ -17,7 +17,7 @@
 </div>
 <div id="serverStartedDiv">
 <table id="rtsp_table" class="parameters">
-  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th onclick="alert('\'Auto\' quality adjusts the resolution and framerate according to the available bandwidth and packet loss estimates')">Quality ⓘ</th><th onclick="alert('Enabling \'Record\' starts the recording of the live-streamed video in the Companion Computer\'s home directory. The stream must be opened on the client for the recording to start. This does not work currently work for the \'Auto\' quality setting.')">Record ⓘ</th><th>Apply</th></tr>
+  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP Mount Point</th><th onclick="alert('\'Auto\' quality adjusts the resolution and framerate according to the available bandwidth and packet loss estimates')">Quality ⓘ</th><th onclick="alert('Enabling \'Record\' starts the recording of the live-streamed video in the Companion Computer\'s home directory. The stream must be opened on the client for the recording to start. This does not work currently work for the \'Auto\' quality setting and for the Pi camera.')">Record ⓘ</th><th>Apply</th></tr>
 </table>
 <p><input type="submit" name="action" value="Stop RTSP Server" onclick="stop_server();"></p>
 </div>
@@ -110,10 +110,10 @@
             try {
                 plist = JSON.parse(cam_data);
                 plist.sort(function(a,b) {
-                    if (a.mount < b.mount) {
+                    if (a.mount > b.mount) {
                         return -1;
                     }
-                    if (a.mount > b.mount) {
+                    if (a.mount < b.mount) {
                         return 1;
                     }
                     return 0;
@@ -166,7 +166,11 @@
                 } else {
                     row.insertCell(3).innerHTML = '<select disabled id="' + quality_select_box + '"></select>';
                 }
-                row.insertCell(4).innerHTML = '<input type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
+                if (rowdata.camtype != 2) {
+                    row.insertCell(4).innerHTML = '<input type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
+                } else {
+                    row.insertCell(4).innerHTML = '<input disabled type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
+                }
                 row.insertCell(5).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
                 var select = document.getElementById(quality_select_box);

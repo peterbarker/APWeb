@@ -110,10 +110,10 @@
             try {
                 plist = JSON.parse(cam_data);
                 plist.sort(function(a,b) {
-                    if (a.mount > b.mount) {
+                    if (a.mount < b.mount) {
                         return -1;
                     }
-                    if (a.mount < b.mount) {
+                    if (a.mount > b.mount) {
                         return 1;
                     }
                     return 0;

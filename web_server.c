@@ -869,9 +869,6 @@ int main(int argc, char *argv[])
     // setup default allowed origin
     setup_origin(public_origin);
 
-    /* test_config(); */
-    /* exit(1); */
-
     while ((opt=getopt(argc, argv, "p:s:b:hd:uf:O:")) != -1) {
         switch (opt) {
         case 'p':
@@ -910,6 +907,14 @@ int main(int argc, char *argv[])
     }
     if (serial_port == NULL) {
         baudrate = -1;
+    }
+
+    // summarily ignore SIGPIPE; without this, if a download is
+    // interrupted sock_write's write() call will kill the process
+    // with SIGPIPE
+    web_debug(4, "Ignoring sig pipe\n");
+    if (signal(SIGPIPE, sig_pipe_handler) == SIG_ERR) {
+        console_printf("Failed to ignore SIGPIPE: %m\n");
     }
 
     // summarily ignore SIGPIPE; without this, if a download is

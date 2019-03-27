@@ -17,6 +17,10 @@
 #include "linux/functions.h"
 #endif
 
+#ifdef _POSIX_VERSION
+#include "posix/functions.h"
+#endif
+
 #ifdef SYSTEM_FREERTOS
 #include "../mavlink_wifi.h"
 #include "video_main.h"

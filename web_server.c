@@ -291,9 +291,7 @@ static bool check_origin(const char *origin)
         getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in), host, NI_MAXHOST,
                     NULL, 0, NI_NUMERICHOST);
         if (ifa->ifa_addr->sa_family==AF_INET) {
-            char host_string[20] = "http://";
-            strcat(host_string, host);
-            if (strcmp(origin, host_string) == 0) {
+            if (strstr(origin, host) != NULL) {
                 return true;
             }
         }

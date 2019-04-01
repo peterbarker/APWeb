@@ -17,7 +17,7 @@
 </div>
 <div id="serverStartedDiv">
 <table id="rtsp_table" class="parameters">
-  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP URL</th><th>Copy URL</th><th onclick="alert('\'Auto\' quality adjusts the resolution and framerate according to the available bandwidth and packet loss estimates')">Quality ⓘ</th><th onclick="alert('Enabling \'Record\' starts the recording of the live-streamed video in the Companion Computer\'s home directory. The stream must be opened on the client for the recording to start. This does not work currently work for the \'Auto\' quality setting and for the Pi camera.')">Record ⓘ</th><th>Apply</th></tr>
+  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP URL</th><th>Copy URL</th><th title='Auto quality adjusts the resolution and framerate according to the available bandwidth and packet loss estimates. The stream has to be restarted for UVC and Jetson CSI cameras for the changes to take effect.'>Quality ⓘ</th><th>Apply</th></tr>
 </table>
 <p><input type="submit" name="action" value="Stop RTSP Server" onclick="stop_server();"></p>
 </div>
@@ -164,12 +164,7 @@
                 } else {
                     row.insertCell(4).innerHTML = '<select disabled id="' + quality_select_box + '"></select>';
                 }
-                if (rowdata.camtype != 2) {
-                    row.insertCell(5).innerHTML = '<input type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
-                } else {
-                    row.insertCell(5).innerHTML = '<input disabled type="checkbox" id=' + record_video_checkbox + ' margin: auto; text-align:center; >';
-                }
-                row.insertCell(6).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
+                row.insertCell(5).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
                 var select = document.getElementById(quality_select_box);
                 select.options[select.options.length] = new Option("Auto", AUTO_PRESET);
@@ -196,13 +191,7 @@
         var device_name = document.getElementById("device" + button.value).innerHTML;
         var qual_setting = quality_select_box.value;
 
-        var record_val;
-
-        if (record_video_checkbox.checked == true) {
-            record_val = 1;
-        } else {
-            record_val = 0;
-        }
+        var record_val = 0;
 
         var sdp_string = "SDP$" + device_name + " " + qual_setting + " " + record_val;
         command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});

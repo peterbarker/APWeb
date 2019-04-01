@@ -158,12 +158,7 @@
                 var current_quality = rowdata.current_quality;
                 var curr_recording = rowdata.recording;
 
-                // H.264 cams don't do file recording properly, so let's disable it for now
-                if (rowdata.camtype != 1) {
-                    row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>';
-                } else {
-                    row.insertCell(4).innerHTML = '<select disabled id="' + quality_select_box + '"></select>';
-                }
+                row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>';
                 row.insertCell(5).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
 
                 var select = document.getElementById(quality_select_box);

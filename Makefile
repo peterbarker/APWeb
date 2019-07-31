@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-Wall -g -Werror
+CFLAGS=-Wall -g -Werror -std=gnu99
 
-SRC = $(wildcard *.c) $(wildcard lib/*.c) $(wildcard linux/*.c)
+SRC = $(wildcard *.c) $(wildcard lib/*.c) $(wildcard linux/*.c) $(wildcard posix/*.c)
 OBJ = $(SRC:%.c=%.o)
 LIBS = -ltalloc -lpthread
 
@@ -12,7 +12,7 @@ all: files/embedded.c mavlink web_server
 mavlink: generated/mavlink/ardupilotmega/mavlink.h
 
 generated/mavlink/ardupilotmega/mavlink.h:
-	mavgen.py --lang C ../mavlink/message_definitions/v1.0/ardupilotmega.xml -o generated/mavlink --wire-protocol=2.0
+	modules/mavlink/pymavlink/tools/mavgen.py --lang C modules/mavlink/message_definitions/v1.0/ardupilotmega.xml -o generated/mavlink --wire-protocol=2.0
 
 web_server: $(OBJ) files/embedded.c
 	$(CC) -o web_server $(OBJ) $(LIBS)

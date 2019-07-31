@@ -21,6 +21,10 @@
 #include "includes.h"
 #include <ctype.h>
 
+#ifdef _POSIX_VERSION
+#include "posix/functions.h"
+#endif
+
 #define CONTENT_DISPOSITION "Content-Disposition:"
 #define CONTENT_TYPE "Content-Type:"
 #define MULTIPART_FORM_DATA "multipart/form-data"
@@ -430,6 +434,7 @@ static const struct mime_type {
     {".txt",  "text/plain", MIME_TYPE_TEXT_PLAIN},
     {".html", "text/html;charset=UTF-8",  MIME_TYPE_TEXT_HTML},
     {".mp4",  "video/mp4",  MIME_TYPE_VIDEO_MP4},
+    {".avi",  "video/avi",  MIME_TYPE_VIDEO_AVI},
     {".bin",  "data",       MIME_TYPE_UNKNOWN},
     {".svg",  "image/svg+xml", MIME_TYPE_IMAGE_SVG},
     {".js",   "application/javascript", MIME_TYPE_JAVASCRIPT},
@@ -588,13 +593,11 @@ static void download(struct cgi_state *cgi, const char *path)
     
     mtype = get_mime_type(path);
 
-#ifdef SYSTEM_FREERTOS
     if (strncmp(path, "fs/", 3) == 0) {
         download_filesystem(cgi, path);
         return;
     }
-#endif
-    
+
     size_t size = 0;
     const char *contents = get_embedded_file(path, &size);
     if (!contents) {
@@ -649,6 +652,12 @@ static bool setup_standalone(struct cgi_state *cgi)
             cgi->content_length = atoi(&line[16]);
         } else if (strncasecmp(line,"Content-Type: ", 14)==0) {
             cgi->content_type = talloc_strdup(cgi, &line[14]);
+        } else if (strncasecmp(line,"Origin: ", 8)==0) {
+            cgi->origin = talloc_strdup(cgi, &line[8]);
+            if (cgi->check_origin != NULL && !cgi->check_origin(cgi->origin)) {
+                cgi->http_error(cgi, "400 Bad Origin", "",
+                                "request with incorrect origin header");                
+            }
         }
         /* ignore all other requests! */
     }

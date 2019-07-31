@@ -3,44 +3,27 @@
   <head>
     <title>ArduPilot</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="css/styles.css">
-    <script type="text/javascript" src="js/config.js"></script>
-    <script type="text/javascript" src="js/cors.js"></script>
-    <script type="text/javascript" src="js/smoothie.min.js"></script>
-    <script type="text/javascript" src="js/mavlink.js"></script>
-    <script type="text/javascript" src="js/tabs.js"></script>
-    <script type="text/javascript" src="js/charts.js"></script>
-    <script type="text/javascript" src="js/pouchdb.js"></script>
-    <script type="text/javascript" src="js/database.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/cors.js"></script>
+    <script type="text/javascript" src="/js/smoothie.min.js"></script>
+    <script type="text/javascript" src="/js/mavlink.js"></script>
+    <script type="text/javascript" src="/js/tabs.js"></script>
+    <script type="text/javascript" src="/js/charts.js"></script>
+    <script type="text/javascript" src="/js/pouchdb.js"></script>
+    <script type="text/javascript" src="/js/database.js"></script>
   </head>
 <body>
 
-<p><a href="index.html"><img src="images/main_logo.png" alt="ArduPilot"></a></p>
+<p><a href="/index.html"><img src="/images/main_logo.png" alt="ArduPilot"></a></p>
   
 <div class="tab">
   <button class="tablinks" onclick="openTab(event, 'Accelerometer')" id="defaultTab">Accelerometer</button>
-  <button class="tablinks" onclick="openTab(event, 'Magnetometer')">Magnetometer</button>
+  <button class="tablinks" onclick="openTab(event, 'Magnetometer')" id="defaultTab">Magnetometer</button>
 </div>
 
 <div id="Accelerometer" class="tabcontent">
 
-<h1>Accelerometer calibration</h1>
-
-There are two types of accelerometer calibration available. Please
-choose which type of calibration you would like.
-
-<hr>
-<h2>Simple Accelerometer Calibration</h2>
-
-A simple accelerometer calibration involves you placing your vehicle
-on a level surface and pressing the button below. The calibration will
-take just a few seconds. This type of calibration is good for most
-users.
-
-<p><div id="simple_accel_message"></div>
-
-<p><input type="submit" name="action" value="Start Simple Accelerometer Calibration" onclick="simple_accel_cal();"><br>
-  
 <hr>
 <h2>Six-Axis Accelerometer Calibration</h2>
 
@@ -50,7 +33,7 @@ below. This type of calibration is good if you will be doing 3D
 flying, or if you find that you get poor results with a simple
 accelerometer calibration.
 
-<p><b>After a six-axis calibration you will need to power cycle your vehicle before you can fly.</b>
+<p>After a six-axis calibration you will need to power cycle your vehicle
 
 <p><div id="six_axis_accel_message"></div>
 
@@ -111,7 +94,7 @@ all axes.
 
 <p>A progress bar will display to show how far you are through the calibration.
 
-<p><b>After a magnetometer calibration you will need to power cycle your vehicle before you can fly.</b>
+<p>After a magnetometer calibration you will need to power cycle your vehicle
 
 <p><div id="mag_message"></div>
 
@@ -146,17 +129,12 @@ all axes.
           <td><div name="MAVLINK:RAW_IMU:ymag"></div></td>
           <td><div name="MAVLINK:RAW_IMU:zmag"></div></td>
         </tr>
-        <tr><td>Offsets</td>
-          <td><div name="MAVLINK:SENSOR_OFFSETS:mag_ofs_x"></div></td>
-          <td><div name="MAVLINK:SENSOR_OFFSETS:mag_ofs_y"></div></td>
-          <td><div name="MAVLINK:SENSOR_OFFSETS:mag_ofs_z"></div></td>
-        </tr>
       </table>
 
     </td>
     <td>
       Magnetometer&nbsp;(<b style="color:red">X</b>, <b style="color:green">Y</b>, <b style="color:blue">Z</b>)<br>
-      <canvas id="mag_canvas" width="400" height="200"></canvas><p>
+      <canvas id="mag_canvas" width="400" height="100"></canvas><p>
     </td>
   </tr>
   </table>
@@ -164,7 +142,7 @@ all axes.
 
 
 <hr>
-<p><a href="index.html">home</a>
+<p><a href="/index.html">home</a>
 
 <script type="text/javascript">
 
@@ -194,12 +172,12 @@ function refresh_ms() {
 }
 
 function simple_accel_cal_callback(result) {
-    var color = "red";
     if (result == 0) {
         result = "calibration successful";
         color = "green";
     } else {
         result = "calibration failed: " + result;
+        color = "red";
     }
     set_message_color("simple_accel_message", color, result);
 }
@@ -220,7 +198,6 @@ function six_axis_accel_cal_continue() {
 
 function six_axis_accel_cal_callback(result) {
     six_axis_running = false;
-    var color = "red";
     if (result == 0) {
         // wait for level
         six_axis_stage = 1;
@@ -229,6 +206,7 @@ function six_axis_accel_cal_callback(result) {
         color = "blue";
     } else {
         result = "calibration failed: " + result;
+        color = "red";
         document.getElementById("continue_div").style.display = "none";
     }
     set_message_color("six_axis_accel_message", color, result);
@@ -243,7 +221,6 @@ function six_axis_accel_cal() {
 }
 
 function mag_cal_callback(result) {
-    var color = "red";
     if (result == 0) {
         // wait for level
         six_axis_stage = 1;
@@ -253,6 +230,7 @@ function mag_cal_callback(result) {
         mag_completion_pct = -1;
     } else {
         result = "calibration failed: " + result;
+        color = "red";
         document.getElementById("mag_div").style.display = "none";
     }
     set_message_color("mag_message", color, result);    
@@ -270,15 +248,9 @@ function fill_parameters(plist) {
         var name = plist[i].name;
         var value = plist[i].value;
         var element = document.getElementById(name);
-        params[name] = value;
         if (element != null) {
-            element.innerHTML = value.toFixed(1);
-        }
-        var elements = document.getElementsByName(name);
-        if (elements != null) {
-            for (var j=0; j<elements.length; j++) {
-                elements[j].innerHTML = value.toFixed(1);
-            }
+            element.innerHTML = value;
+            params[name] = value;
         }
     }
 }

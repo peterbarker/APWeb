@@ -1,0 +1,205 @@
+<!DOCTYPE HTML>
+<html manifest="manifest.appcache">
+  <head>
+    <title>ArduPilot</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="text/javascript" src="/js/config.js"></script>
+    <script type="text/javascript" src="/js/cors.js"></script>
+    <script type="text/javascript" src="/js/mavlink.js"></script>
+  </head>
+<body>
+
+<p><a href="/index.html"><img src="/images/main_logo.png" alt="ArduPilot"></a></p>
+<h1>Video Streaming</h1>
+<div id="serverStoppedDiv">
+<p>Network Interface: <select id="if_select_box"></select><button type="submit" style="padding:1px" value="set_if" onclick="start_server();">Start RTSP Server</button></p>
+</div>
+<div id="serverStartedDiv">
+<table id="rtsp_table" class="parameters">
+  <tr><th>Device</th><th>Camera Name</th><th class="alnright">RTSP URL</th><th>Copy URL</th><th title='Auto quality adjusts the resolution and framerate according to the available bandwidth and packet loss estimates. The stream has to be restarted for UVC and Jetson CSI cameras for the changes to take effect.'>Quality ⓘ</th><th>Apply</th></tr>
+</table>
+<p><input type="submit" name="action" value="Stop RTSP Server" onclick="stop_server();"></p>
+</div>
+<script>
+    var VideoPresetsEnum = {
+        VIDEO_320x240x15: 0, VIDEO_640x480x15: 1, VIDEO_1280x720x15: 2,
+        VIDEO_320x240x30: 3, VIDEO_640x480x30: 4, VIDEO_1280x720x30: 5,
+        VIDEO_320x240x60: 6, VIDEO_640x480x60: 7, VIDEO_1280x720x60: 8
+    };
+    var VideoPresetsName = [
+        "320x240 15fps", "640x480 15fps", "1280x720 15fps",
+        "320x240 30fps", "640x480 30fps", "1280x720 30fps",
+        "320x240 60fps", "640x480 60fps", "1280x720 60fps"
+    ];
+
+    var AUTO_PRESET = 1024;
+
+    window.onload = refresh;
+
+    function removeOptions(selectbox) {
+        var i;
+        for(i = selectbox.options.length - 1 ; i >= 0 ; i--) {
+            selectbox.remove(i);
+        }
+    }
+
+    function start_server() {
+        var select = document.getElementById("if_select_box");
+        console.log(select.value);
+        var interface = select.value;
+        command_send("start_rtsp_server(" + interface + ")", {"onload" : late_refresh});
+    }
+
+    function stop_server() {
+        command_send("stop_rtsp_server()", {"onload" : refresh});
+    }
+
+    function sleep(milliseconds) {
+        var start = new Date().getTime();
+        for (var i = 0; i < 1e7; i++) {
+            if ((new Date().getTime() - start) > milliseconds){
+                break;
+            }
+        }
+    }
+
+    function late_refresh() {
+        // The stream server needs some time to wake up
+        timed_refresh(1000);
+    }
+
+    function timed_refresh(millis) {
+        sleep(millis);
+        refresh();
+    }
+
+    function fill_interface_list(interface_list) {
+        console.log(interface_list);
+        var select = document.getElementById("if_select_box");
+        removeOptions(select);
+        var iflist = JSON.parse(interface_list);
+        var interfaces = iflist["interfaces"];
+        for (var i = 0; i < interfaces.length; i++) {
+            select.options[select.options.length] = new Option(interfaces[i], interfaces[i]);
+        }
+    }
+
+    // Hacky code to copy text from a clipboard
+    function CopyToClipboard(containerid) {
+        console.log("Copying " + containerid.innerHTML);
+        var textarea = document.createElement('textarea');
+        textarea.id = 'temp_element';
+        textarea.style.height = 0
+        document.body.appendChild(textarea)
+        textarea.value = containerid.innerHTML
+        var selector = document.querySelector('#temp_element')
+        selector.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+    }
+
+    function fill_rtsp_table(cam_data) {
+        console.log(cam_data);
+        var table = document.getElementById("rtsp_table");
+
+        // delete any existing rows
+        var nrows = table.rows.length;
+        for (var i=nrows-1; i>0; i--) {
+            table.deleteRow(i);
+        }
+
+        if (cam_data == "ERROR\n") {
+            console.log("error str");
+            document.getElementById("serverStartedDiv").style.display = 'none';
+            document.getElementById("serverStoppedDiv").style.display = 'block';
+            command_send("get_interfaces()", { "onload" : fill_interface_list });
+        } else {
+            document.getElementById("serverStartedDiv").style.display = 'block';
+            document.getElementById("serverStoppedDiv").style.display = 'none';
+            var plist;
+            try {
+                plist = JSON.parse(cam_data);
+                plist.sort(function(a,b) {
+                    if (a.mount < b.mount) {
+                        return -1;
+                    }
+                    if (a.mount > b.mount) {
+                        return 1;
+                    }
+                    return 0;
+                });
+            } catch(e) {
+                console.log(e);
+                return;
+            }
+
+            var n = plist.length;
+            for (var i=0; i<n; i++) {
+                var row = table.insertRow(table.rows.length);
+                var rowdata = plist[i];
+                var device_cell = row.insertCell(0);
+                var ip = rowdata.ip;
+                var port = rowdata.port;
+                device_cell.innerHTML = rowdata.dev_mount;
+                device_cell.id = "device" + i;
+                row.insertCell(1).innerHTML = rowdata.name;
+                var mount_url = "rtsp://" + ip + ":" + port + rowdata.mount;
+                var mount_url_box = "mountbox" + i;
+                row.insertCell(2).innerHTML = '<div id="' + mount_url_box+ '">' + mount_url + "</div>";
+                console.log("MOUNT URL " + mount_url);
+                row.insertCell(3).innerHTML = '<button type="submit" style="width: 100%; height: 100%;" onclick="CopyToClipboard(' + mount_url_box + ')">Copy</button>';
+
+                var form_quality = "form_quality" + i;
+                var quality_select_box = "quality_select_box"+i;
+                var set_quality_button = "set_quality_button"+i;
+                var record_video_checkbox = "record"+i;
+
+                var current_quality = rowdata.current_quality;
+                var curr_recording = rowdata.recording;
+
+                row.insertCell(4).innerHTML = '<select id="' + quality_select_box + '"></select>';
+                row.insertCell(5).innerHTML = '<button type="submit" value="' + i.toString() + '" onclick="send_settings(this)">Set</button>';
+
+                var select = document.getElementById(quality_select_box);
+                select.options[select.options.length] = new Option("Auto", AUTO_PRESET);
+                for (var j = 0; j < Object.keys(VideoPresetsEnum).length; j++) {
+                    var test_value = 0;
+                    test_value = 1 << j;
+                    if (test_value & rowdata.frame_property_bitmask) {
+                        console.log("Supports " + VideoPresetsName[j]);
+                        select.options[select.options.length] = new Option(VideoPresetsName[j], j);
+                    }
+                }
+                document.getElementById(quality_select_box).value = current_quality;
+            }
+        }
+    }
+
+    function send_settings(button) {
+        console.log("Reached this " + button.value);
+        var table = document.getElementById("rtsp_table");
+        var quality_select_box = document.getElementById("quality_select_box" + button.value);
+        var record_video_checkbox = document.getElementById("record"+button.value);
+
+        var device_name = document.getElementById("device" + button.value).innerHTML;
+        var qual_setting = quality_select_box.value;
+
+        var record_val = 0;
+
+        var sdp_string = "SDP$" + device_name + " " + qual_setting + " " + record_val;
+        command_send("set_device_quality(" + sdp_string + ")", {"onload" : after_sdp});
+        console.log("QualValue - " + sdp_string);
+        timed_refresh(100);
+    }
+
+    function after_sdp() {
+        console.log("SDP string sent");
+    }
+
+    function refresh() {
+        command_send("get_camera_details()", { "onload" : fill_rtsp_table });
+    }
+
+</script>
+</html>

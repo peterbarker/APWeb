@@ -1,4 +1,4 @@
-var drone_url = "http://192.168.99.1";
+var drone_url = "http://127.0.0.1";
 
 /* URL for Ublox MGA data */
 var mga_data_url = "http://gps.tridgell.net/data/mga-offline.ubx";

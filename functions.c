@@ -8,12 +8,17 @@
 #include "mavlink_json.h"
 #include "mavlink_core.h"
 #include "cgi.h"
+#include "rtsp_ipc.h"
 
 #ifdef _POSIX_VERSION
 #include "posix/functions.h"
 #endif
 #ifdef __linux__
 #include "linux/functions.h"
+#endif
+
+#ifdef _POSIX_VERSION
+#include "posix/functions.h"
 #endif
 
 #ifdef SYSTEM_FREERTOS
@@ -756,6 +761,78 @@ static void get_param(struct template_state *tmpl, const char *name, const char 
 }
 
 /*
+  gets the list of avaialble cameras from the RTSP stream server over a local socket
+ */
+static void get_camera_details(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    char msg[IPC_BUFFER_SIZE];
+    char result[IPC_BUFFER_SIZE];
+    msg[0] = '\0';
+    get_server_response(GET_DEVICE_PROPS, msg, NULL);
+    if (strlen(msg)) {
+        process_server_response(msg, result);
+        sock_printf(tmpl->sock, "%s", result);
+    } else {
+        sock_printf(tmpl->sock, "%s", "ERROR");
+    }
+}
+
+/*
+  find the list of available network interfaces for starting the RTSP stream server
+ */
+static void get_interfaces(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    char interfaces_list[IPC_BUFFER_SIZE];
+    get_interfaces_list(interfaces_list);
+    sock_printf(tmpl->sock, "%s", interfaces_list);
+}
+
+/*
+  sets the properties of a camera through IPC with the RTSP stream server
+ */
+static void set_device_quality(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    if (argc) {
+        if (send_server_message(argv[0])) {
+            printf("Error in setting camera properties\n");
+        }
+    }
+}
+
+static pid_t stream_server_pid = -1;
+
+/*
+  forks to create a new process for the RTSP stream
+ */
+static void start_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    if (stream_server_pid == -1) {
+        stream_server_pid = fork();
+        if (stream_server_pid < 0) {
+            printf("Fork failed\n");
+        } else if (stream_server_pid == 0) {
+            if (execlp("stream_server", "stream_server", argv[0], NULL)==-1) {
+                printf("Error in launching the stream server\n");
+            }
+        }
+    } else {
+        printf("Stream server running with PID: %d\n", stream_server_pid);
+    }
+}
+
+static void stop_rtsp_server(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
+{
+    if (stream_server_pid != -1) {
+        if(!kill(stream_server_pid, SIGINT)) {
+            stream_server_pid = -1;
+            printf("Stream server successfully killed\n");
+        } else {
+            printf("Could not kill the stream server\n");
+        }
+    }
+}
+
+/*
   get parameter list
  */
 static void get_param_list(struct template_state *tmpl, const char *name, const char *value, int argc, char **argv)
@@ -1061,4 +1138,9 @@ void functions_init(struct template_state *tmpl)
     tmpl->put(tmpl, "process_content", "", process_content);
     tmpl->put(tmpl, "get_param", "", get_param);
     tmpl->put(tmpl, "get_param_list", "", get_param_list);
+    tmpl->put(tmpl, "get_camera_details", "", get_camera_details);
+    tmpl->put(tmpl, "set_device_quality", "", set_device_quality);
+    tmpl->put(tmpl, "start_rtsp_server", "", start_rtsp_server);
+    tmpl->put(tmpl, "stop_rtsp_server", "", stop_rtsp_server);
+    tmpl->put(tmpl, "get_interfaces", "", get_interfaces);
 }
